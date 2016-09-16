@@ -1,0 +1,10 @@
+   1 <?xml version="1.0"?>
+   2 <robot name="ninoW">
+   3   <link name="base_link">
+   4     <visual>
+   5       <geometry>
+   6         <cylinder length="0.6" radius="0.2"/>
+   7       </geometry>
+   8     </visual>
+   9   </link>
+  10 </robot>
