@@ -99,7 +99,7 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     robotNamespace.clear();
   else
 //     robotNamespace = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
-    robotNamespace = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
+    robotNamespace = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -108,7 +108,7 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   }
   else {
 //     linkName = _sdf->GetElement("bodyName")->GetValueString();
-    linkName = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
+    linkName = _sdf->GetElement("bodyName")->Get<std::string>();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(linkName));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(linkName));
   }
@@ -129,19 +129,19 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     frameId = linkName;
   else
 //     frameId = _sdf->GetElement("frameId")->GetValueString();
-    frameId = _sdf->GetElement("frameId")->GetValue()->GetAsString();
+    frameId = _sdf->GetElement("frameId")->Get<std::string>();
 
   if (!_sdf->HasElement("topicName"))
     topicName = "imu";
   else
 //     topicName = _sdf->GetElement("topicName")->GetValueString();
-    topicName = _sdf->GetElement("topicName")->GetValue()->GetAsString();
+    topicName = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("serviceName"))
     serviceName = topicName + "/calibrate";
   else
 //     serviceName = _sdf->GetElement("serviceName")->GetValueString();
-    serviceName = _sdf->GetElement("serviceName")->GetValue()->GetAsString();
+    serviceName = _sdf->GetElement("serviceName")->Get<std::string>();
 
   accelModel.Load(_sdf, "accel");
   rateModel.Load(_sdf, "rate");

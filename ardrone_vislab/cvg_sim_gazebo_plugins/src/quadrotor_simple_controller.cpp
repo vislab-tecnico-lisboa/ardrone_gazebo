@@ -76,31 +76,31 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     namespace_.clear();
   else
     //namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
 
   if (!_sdf->HasElement("topicName"))
     velocity_topic_ = "cmd_vel";
   else
     //velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
-    velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
+    velocity_topic_ = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("navdataTopic"))
     navdata_topic_ = "/ardrone/navdata";
   else
     //navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
-    navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
+    navdata_topic_ = _sdf->GetElement("navdataTopic")->Get<std::string>();
 
   if (!_sdf->HasElement("imuTopic"))
     imu_topic_.clear();
   else
     //imu_topic_ = _sdf->GetElement("imuTopic")->GetValueString();
-    imu_topic_ = _sdf->GetElement("imuTopic")->GetValue()->GetAsString();
+    imu_topic_ = _sdf->GetElement("imuTopic")->Get<std::string>();
 
   if (!_sdf->HasElement("stateTopic"))
     state_topic_.clear();
   else
     //state_topic_ = _sdf->GetElement("stateTopic")->GetValueString();
-    state_topic_ = _sdf->GetElement("stateTopic")->GetValue()->GetAsString();
+    state_topic_ = _sdf->GetElement("stateTopic")->Get<std::string>();
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -109,7 +109,7 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
   }
   else {
     //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
-    link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
+    link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
   }

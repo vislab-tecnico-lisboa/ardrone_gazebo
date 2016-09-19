@@ -63,7 +63,7 @@ void GazeboRosGps::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     namespace_.clear();
   else
 //     namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -72,7 +72,7 @@ void GazeboRosGps::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   }
   else {
     //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
-    link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
+    link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
   }
@@ -92,19 +92,19 @@ void GazeboRosGps::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     frame_id_ = link_name_;
   else
     //frame_id_ = _sdf->GetElement("frameId")->GetValueString();
-    frame_id_ = _sdf->GetElement("frameId")->GetValue()->GetAsString();
+    frame_id_ = _sdf->GetElement("frameId")->Get<std::string>();
 
   if (!_sdf->HasElement("topicName"))
     fix_topic_ = "fix";
   else
     //fix_topic_ = _sdf->GetElement("topicName")->GetValueString();
-    fix_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
+    fix_topic_ = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("velocityTopicName"))
     velocity_topic_ = "fix_velocity";
   else
     //velocity_topic_ = _sdf->GetElement("velocityTopicName")->GetValueString();
-    velocity_topic_ = _sdf->GetElement("velocityTopicName")->GetValue()->GetAsString();
+    velocity_topic_ = _sdf->GetElement("velocityTopicName")->Get<std::string>();
 
   if (!_sdf->HasElement("referenceLatitude"))
     reference_latitude_ = DEFAULT_REFERENCE_LATITUDE;

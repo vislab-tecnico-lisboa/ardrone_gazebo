@@ -63,13 +63,13 @@ void GazeboRosMagnetic::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     namespace_.clear();
   else
 //     namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
 
   if (!_sdf->HasElement("topicName"))
     topic_ = "magnetic";
   else
 //     topic_ = _sdf->GetElement("topicName")->GetValueString();
-    topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
+    topic_ = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -78,7 +78,7 @@ void GazeboRosMagnetic::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   }
   else {
     //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
-    link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
+    link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
   }
@@ -98,7 +98,7 @@ void GazeboRosMagnetic::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     frame_id_ = link_name_;
   else
 //     frame_id_ = _sdf->GetElement("frameId")->GetValueString();
-    frame_id_ = _sdf->GetElement("frameId")->GetValue()->GetAsString();
+    frame_id_ = _sdf->GetElement("frameId")->Get<std::string>();
 
   if (!_sdf->HasElement("magnitude"))
     magnitude_ = DEFAULT_MAGNITUDE;
