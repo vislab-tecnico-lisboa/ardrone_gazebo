@@ -25,7 +25,7 @@ feature_params = dict(maxCorners = 500,
                       blockSize = 7)
 
 front_time = 200
-turn_time = 200
+turn_time = 500
 
 class optical_flow:
 
@@ -72,11 +72,11 @@ class optical_flow:
     l_r_sum = size_l + size_r
     l_r_sum_abs = abs(size_l) + abs(size_r)
 
-    if l_r_sum_abs >= 40:
+    if l_r_sum_abs >= 50:
         twist.linear.x = 0
         twist.angular.z = 0.0
         #print('Stop: ', l_r_sum, l_r_sum_abs, size_l, size_r)
-    elif abs(l_r_sum) <= 6: #(l_r_sum_abs * 50 / 100):
+    elif abs(l_r_sum) <= (l_r_sum_abs * 20 / 100):
         twist.linear.x = 1
         twist.angular.z = 0.0
         #print('Forward: ', l_r_sum, l_r_sum_abs, size_l, size_r)
@@ -92,7 +92,7 @@ class optical_flow:
     l_r_sum = size_l + size_r
     l_r_sum_abs = abs(size_l) + abs(size_r)
 
-    if ((abs(l_r_sum) <= (l_r_sum_abs * 60 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
+    if ((abs(l_r_sum) <= (l_r_sum_abs * 30 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
 #    if ((abs(l_r_sum) <= 0.5) or (self.counter <= front_time)) and (self.turn_flag == False):
       if self.counter == -1:
         self.past_time = int(round(time.time() * 1000))
@@ -352,7 +352,7 @@ class optical_flow:
             vis, size_l, size_r = self.calc_mean(vis, start_p, end_p, good)
             draw_str(vis, (20, 40), 'Lenght left: %f' % size_l)
             draw_str(vis, (20, 60), 'Lenght right: %f' % size_r)
-            #self.ctrl_pub.publish(self.reactive_controller2(size_l, size_r))
+            self.ctrl_pub.publish(self.reactive_controller2(size_l, size_r))
     
         if self.frame_idx % self.detect_interval == 0:
             mask = np.zeros_like(frame_gray)

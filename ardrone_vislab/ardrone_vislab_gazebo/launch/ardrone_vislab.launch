@@ -13,8 +13,8 @@
   </include>
 
 
-  <!-- Spawn simulated quadrotor uav 
+  <!-- Spawn simulated quadrotor uav -->
   <include file="$(find ardrone_vislab_gazebo)/launch/spawn_quadrotor.launch" >
     <arg name="model" value="$(find ardrone_vislab_description)/urdf/quadrotor_sensors.urdf.xacro"/> 
-  </include>-->
+  </include>
 </launch>
