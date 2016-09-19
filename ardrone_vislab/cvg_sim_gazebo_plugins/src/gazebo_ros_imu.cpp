@@ -98,7 +98,8 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   if (!_sdf->HasElement("robotNamespace"))
     robotNamespace.clear();
   else
-    robotNamespace = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+//     robotNamespace = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    robotNamespace = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -106,7 +107,8 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     linkName = link->GetName();
   }
   else {
-    linkName = _sdf->GetElement("bodyName")->GetValueString();
+//     linkName = _sdf->GetElement("bodyName")->GetValueString();
+    linkName = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(linkName));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(linkName));
   }
@@ -119,23 +121,27 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   }
 
   double update_rate = 0.0;
-  if (_sdf->HasElement("updateRate")) update_rate = _sdf->GetElement("updateRate")->GetValueDouble();
+//   if (_sdf->HasElement("updateRate")) update_rate = _sdf->GetElement("updateRate")->GetValueDouble();
+  if (_sdf->HasElement("updateRate")) update_rate = _sdf->GetElement("updateRate")->Get<double>();
   update_period = update_rate > 0.0 ? 1.0/update_rate : 0.0;
 
   if (!_sdf->HasElement("frameId"))
     frameId = linkName;
   else
-    frameId = _sdf->GetElement("frameId")->GetValueString();
+//     frameId = _sdf->GetElement("frameId")->GetValueString();
+    frameId = _sdf->GetElement("frameId")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("topicName"))
     topicName = "imu";
   else
-    topicName = _sdf->GetElement("topicName")->GetValueString();
+//     topicName = _sdf->GetElement("topicName")->GetValueString();
+    topicName = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("serviceName"))
     serviceName = topicName + "/calibrate";
   else
-    serviceName = _sdf->GetElement("serviceName")->GetValueString();
+//     serviceName = _sdf->GetElement("serviceName")->GetValueString();
+    serviceName = _sdf->GetElement("serviceName")->GetValue()->GetAsString();
 
   accelModel.Load(_sdf, "accel");
   rateModel.Load(_sdf, "rate");
@@ -143,7 +149,8 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 
   // also use old configuration variables from gazebo_ros_imu
   if (_sdf->HasElement("gaussianNoise")) {
-    double gaussianNoise = _sdf->GetElement("gaussianNoise")->GetValueDouble();
+//     double gaussianNoise = _sdf->GetElement("gaussianNoise")->GetValueDouble();
+    double gaussianNoise = _sdf->GetElement("gaussianNoise")->Get<double>();
     if (gaussianNoise != 0.0) {
       accelModel.gaussian_noise = gaussianNoise;
       rateModel.gaussian_noise  = gaussianNoise;
@@ -151,7 +158,8 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   }
 
   if (_sdf->HasElement("rpyOffset")) {
-    sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->GetValueVector3();
+//     sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->GetValueVector3();
+    sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->Get<sdf::Vector3>();
     math::Vector3 rpyOffset = math::Vector3(sdfVec.x, sdfVec.y, sdfVec.z);
     if (accelModel.offset.y == 0.0 && rpyOffset.x != 0.0) accelModel.offset.y = -rpyOffset.x * 9.8065;
     if (accelModel.offset.x == 0.0 && rpyOffset.y != 0.0) accelModel.offset.x =  rpyOffset.y * 9.8065;

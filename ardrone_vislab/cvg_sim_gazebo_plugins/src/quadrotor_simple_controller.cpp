@@ -75,27 +75,32 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
   if (!_sdf->HasElement("robotNamespace"))
     namespace_.clear();
   else
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    //namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
 
   if (!_sdf->HasElement("topicName"))
     velocity_topic_ = "cmd_vel";
   else
-    velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
+    //velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
+    velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("navdataTopic"))
     navdata_topic_ = "/ardrone/navdata";
   else
-    navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
+    //navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
+    navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("imuTopic"))
     imu_topic_.clear();
   else
-    imu_topic_ = _sdf->GetElement("imuTopic")->GetValueString();
+    //imu_topic_ = _sdf->GetElement("imuTopic")->GetValueString();
+    imu_topic_ = _sdf->GetElement("imuTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("stateTopic"))
     state_topic_.clear();
   else
-    state_topic_ = _sdf->GetElement("stateTopic")->GetValueString();
+    //state_topic_ = _sdf->GetElement("stateTopic")->GetValueString();
+    state_topic_ = _sdf->GetElement("stateTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -103,7 +108,8 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     link_name_ = link->GetName();
   }
   else {
-    link_name_ = _sdf->GetElement("bodyName")->GetValueString();
+    //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
+    link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
   }
@@ -117,23 +123,27 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
   if (!_sdf->HasElement("maxForce"))
     max_force_ = -1;
   else
-    max_force_ = _sdf->GetElement("maxForce")->GetValueDouble();
+    //max_force_ = _sdf->GetElement("maxForce")->GetValueDouble();
+    max_force_ = _sdf->GetElement("maxForce")->Get<double>();
 
 
   if (!_sdf->HasElement("motionSmallNoise"))
     motion_small_noise_ = 0;
   else
-    motion_small_noise_ = _sdf->GetElement("motionSmallNoise")->GetValueDouble();
+    //motion_small_noise_ = _sdf->GetElement("motionSmallNoise")->GetValueDouble();
+    motion_small_noise_ = _sdf->GetElement("motionSmallNoise")->Get<double>();
 
   if (!_sdf->HasElement("motionDriftNoise"))
     motion_drift_noise_ = 0;
   else
-    motion_drift_noise_ = _sdf->GetElement("motionDriftNoise")->GetValueDouble();
+    //motion_drift_noise_ = _sdf->GetElement("motionDriftNoise")->GetValueDouble();
+    motion_drift_noise_ = _sdf->GetElement("motionDriftNoise")->Get<double>();
 
   if (!_sdf->HasElement("motionDriftNoiseTime"))
     motion_drift_noise_time_ = 1.0;
   else
-    motion_drift_noise_time_ = _sdf->GetElement("motionDriftNoiseTime")->GetValueDouble();
+    //motion_drift_noise_time_ = _sdf->GetElement("motionDriftNoiseTime")->GetValueDouble();
+    motion_drift_noise_time_ = _sdf->GetElement("motionDriftNoiseTime")->Get<double>();
 
 
   controllers_.roll.Load(_sdf, "rollpitch");
@@ -407,11 +417,16 @@ void GazeboQuadrotorSimpleController::PIDController::Load(sdf::ElementPtr _sdf, 
 
   if (!_sdf) return;
   // _sdf->PrintDescription(_sdf->GetName());
-  if (_sdf->HasElement(prefix + "ProportionalGain")) gain_p = _sdf->GetElement(prefix + "ProportionalGain")->GetValueDouble();
-  if (_sdf->HasElement(prefix + "DifferentialGain")) gain_d = _sdf->GetElement(prefix + "DifferentialGain")->GetValueDouble();
-  if (_sdf->HasElement(prefix + "IntegralGain"))     gain_i = _sdf->GetElement(prefix + "IntegralGain")->GetValueDouble();
-  if (_sdf->HasElement(prefix + "TimeConstant"))     time_constant = _sdf->GetElement(prefix + "TimeConstant")->GetValueDouble();
-  if (_sdf->HasElement(prefix + "Limit"))            limit = _sdf->GetElement(prefix + "Limit")->GetValueDouble();
+//   if (_sdf->HasElement(prefix + "ProportionalGain")) gain_p = _sdf->GetElement(prefix + "ProportionalGain")->GetValueDouble();
+//   if (_sdf->HasElement(prefix + "DifferentialGain")) gain_d = _sdf->GetElement(prefix + "DifferentialGain")->GetValueDouble();
+//   if (_sdf->HasElement(prefix + "IntegralGain"))     gain_i = _sdf->GetElement(prefix + "IntegralGain")->GetValueDouble();
+//   if (_sdf->HasElement(prefix + "TimeConstant"))     time_constant = _sdf->GetElement(prefix + "TimeConstant")->GetValueDouble();
+//   if (_sdf->HasElement(prefix + "Limit"))            limit = _sdf->GetElement(prefix + "Limit")->GetValueDouble();
+  if (_sdf->HasElement(prefix + "ProportionalGain")) gain_p = _sdf->GetElement(prefix + "ProportionalGain")->Get<double>();
+  if (_sdf->HasElement(prefix + "DifferentialGain")) gain_d = _sdf->GetElement(prefix + "DifferentialGain")->Get<double>();
+  if (_sdf->HasElement(prefix + "IntegralGain"))     gain_i = _sdf->GetElement(prefix + "IntegralGain")->Get<double>();
+  if (_sdf->HasElement(prefix + "TimeConstant"))     time_constant = _sdf->GetElement(prefix + "TimeConstant")->Get<double>();
+  if (_sdf->HasElement(prefix + "Limit"))            limit = _sdf->GetElement(prefix + "Limit")->Get<double>();
 
 }
 

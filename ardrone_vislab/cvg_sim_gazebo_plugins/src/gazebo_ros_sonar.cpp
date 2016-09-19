@@ -56,7 +56,7 @@ void GazeboRosSonar::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
 {
   // Get then name of the parent sensor
   //sensor_ = boost::shared_dynamic_cast<sensors::RaySensor>(_sensor);
-  sensor_ = boost::dynamic_pointer_cast<sensors::RaySensor>(_sensor);
+  sensor_ = std::dynamic_pointer_cast<sensors::RaySensor>(_sensor);
   if (!sensor_)
   {
     gzthrow("GazeboRosSonar requires a Ray Sensor as its parent");
@@ -71,23 +71,27 @@ void GazeboRosSonar::Load(sensors::SensorPtr _sensor, sdf::ElementPtr _sdf)
   if (!_sdf->HasElement("robotNamespace"))
     namespace_.clear();
   else
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    //namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
 
   if (!_sdf->HasElement("frameId"))
     frame_id_ = "";
   else
-    frame_id_ = _sdf->GetElement("frameId")->GetValueString();
+    //frame_id_ = _sdf->GetElement("frameId")->GetValueString();
+    frame_id_ = _sdf->GetElement("frameId")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("topicName"))
     topic_ = "sonar";
   else
-    topic_ = _sdf->GetElement("topicName")->GetValueString();
+    //topic_ = _sdf->GetElement("topicName")->GetValueString();
+    topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   sensor_model_.Load(_sdf);
 
   range_.header.frame_id = frame_id_;
   range_.radiation_type = sensor_msgs::Range::ULTRASOUND;
-  range_.field_of_view = std::min(fabs((sensor_->GetAngleMax() - sensor_->GetAngleMin()).Radian()), fabs((sensor_->GetVerticalAngleMax() - sensor_->GetVerticalAngleMin()).Radian()));
+  //range_.field_of_view = std::min(fabs((sensor_->GetAngleMax() - sensor_->GetAngleMin()).Radian()), fabs((sensor_->GetVerticalAngleMax() - sensor_->GetVerticalAngleMin()).Radian()));
+  range_.field_of_view = std::min(fabs((sensor_->AngleMax() - sensor_->AngleMin()).Radian()), fabs((sensor_->VerticalAngleMax() - sensor_->VerticalAngleMin()).Radian()));
   range_.max_range = sensor_->GetRangeMax();
   range_.min_range = sensor_->GetRangeMin();
 

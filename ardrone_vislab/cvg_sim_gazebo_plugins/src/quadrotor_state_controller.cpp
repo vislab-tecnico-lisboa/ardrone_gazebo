@@ -53,47 +53,56 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
   if (!_sdf->HasElement("robotNamespace"))
     namespace_.clear();
   else
-    namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    //namespace_ = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    namespace_ = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
 
   if (!_sdf->HasElement("topicName"))
     velocity_topic_ = "cmd_vel";
   else
-    velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
+    //velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
+    velocity_topic_ = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("takeoffTopic"))
     takeoff_topic_ = "/ardrone/takeoff";
   else
-    takeoff_topic_ = _sdf->GetElement("takeoffTopic")->GetValueString();
+    //takeoff_topic_ = _sdf->GetElement("takeoffTopic")->GetValueString();
+    takeoff_topic_ = _sdf->GetElement("takeoffTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("/ardrone/land"))
     land_topic_ = "/ardrone/land";
   else
-    land_topic_ = _sdf->GetElement("landTopic")->GetValueString();
+    //land_topic_ = _sdf->GetElement("landTopic")->GetValueString();
+    land_topic_ = _sdf->GetElement("landTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("resetTopic"))
     reset_topic_ = "/ardrone/reset";
   else
-    reset_topic_ = _sdf->GetElement("resetTopic")->GetValueString();
+    //reset_topic_ = _sdf->GetElement("resetTopic")->GetValueString();
+    reset_topic_ = _sdf->GetElement("resetTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("navdataTopic"))
     navdata_topic_ = "/ardrone/navdata";
   else
-    navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
+    //navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
+    navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("imuTopic"))
     imu_topic_.clear();
   else
-    imu_topic_ = _sdf->GetElement("imuTopic")->GetValueString();
+    //imu_topic_ = _sdf->GetElement("imuTopic")->GetValueString();
+    imu_topic_ = _sdf->GetElement("imuTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("sonarTopic"))
     sonar_topic_.clear();
   else
-    sonar_topic_ = _sdf->GetElement("sonarTopic")->GetValueString();
+    //sonar_topic_ = _sdf->GetElement("sonarTopic")->GetValueString();
+    sonar_topic_ = _sdf->GetElement("sonarTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("stateTopic"))
     state_topic_.clear();
   else
-    state_topic_ = _sdf->GetElement("stateTopic")->GetValueString();
+    //state_topic_ = _sdf->GetElement("stateTopic")->GetValueString();
+    state_topic_ = _sdf->GetElement("stateTopic")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -101,7 +110,8 @@ void GazeboQuadrotorStateController::Load(physics::ModelPtr _model, sdf::Element
     link_name_ = link->GetName();
   }
   else {
-    link_name_ = _sdf->GetElement("bodyName")->GetValueString();
+    //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
+    link_name_ = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
     link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
   }

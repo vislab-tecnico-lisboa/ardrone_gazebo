@@ -82,12 +82,14 @@ void DiffDrivePlugin6W::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   if (!_sdf->HasElement("robotNamespace"))
     robotNamespace.clear();
   else
-    robotNamespace = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+//     robotNamespace = _sdf->GetElement("robotNamespace")->GetValueString() + "/";
+    robotNamespace = _sdf->GetElement("robotNamespace")->GetValue()->GetAsString() + "/";
 
   if (!_sdf->HasElement("topicName"))
     topicName = "cmd_vel";
   else
-    topicName = _sdf->GetElement("topicName")->GetValueString();
+    //topicName = _sdf->GetElement("topicName")->GetValueString();
+    topicName = _sdf->GetElement("topicName")->GetValue()->GetAsString();
 
   if (!_sdf->HasElement("bodyName"))
   {
@@ -95,9 +97,11 @@ void DiffDrivePlugin6W::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     linkName = link->GetName();
   }
   else {
-    linkName = _sdf->GetElement("bodyName")->GetValueString();
+//     linkName = _sdf->GetElement("bodyName")->GetValueString();
+    linkName = _sdf->GetElement("bodyName")->GetValue()->GetAsString();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(_sdf->GetElement("bodyName")->GetValueString()));
-    link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(_sdf->GetElement("bodyName")->GetValueString()));
+    //link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(_sdf->GetElement("bodyName")->GetValueString()));
+    link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(_sdf->GetElement("bodyName")->GetValue()->GetAsString()));
   }
 
   // assert that the body by linkName exists
@@ -107,12 +111,18 @@ void DiffDrivePlugin6W::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     return;
   }
 
-  if (_sdf->HasElement("frontLeftJoint"))  joints[FRONT_LEFT]  = _model->GetJoint(_sdf->GetElement("frontLeftJoint")->GetValueString());
-  if (_sdf->HasElement("frontRightJoint")) joints[FRONT_RIGHT] = _model->GetJoint(_sdf->GetElement("frontRightJoint")->GetValueString());
-  if (_sdf->HasElement("midLeftJoint"))    joints[MID_LEFT]    = _model->GetJoint(_sdf->GetElement("midLeftJoint")->GetValueString());
-  if (_sdf->HasElement("midRightJoint"))   joints[MID_RIGHT]   = _model->GetJoint(_sdf->GetElement("midRightJoint")->GetValueString());
-  if (_sdf->HasElement("rearLeftJoint"))   joints[REAR_LEFT]   = _model->GetJoint(_sdf->GetElement("rearLeftJoint")->GetValueString());
-  if (_sdf->HasElement("rearRightJoint"))  joints[REAR_RIGHT]  = _model->GetJoint(_sdf->GetElement("rearRightJoint")->GetValueString());
+//   if (_sdf->HasElement("frontLeftJoint"))  joints[FRONT_LEFT]  = _model->GetJoint(_sdf->GetElement("frontLeftJoint")->GetValueString());
+//   if (_sdf->HasElement("frontRightJoint")) joints[FRONT_RIGHT] = _model->GetJoint(_sdf->GetElement("frontRightJoint")->GetValueString());
+//   if (_sdf->HasElement("midLeftJoint"))    joints[MID_LEFT]    = _model->GetJoint(_sdf->GetElement("midLeftJoint")->GetValueString());
+//   if (_sdf->HasElement("midRightJoint"))   joints[MID_RIGHT]   = _model->GetJoint(_sdf->GetElement("midRightJoint")->GetValueString());
+//   if (_sdf->HasElement("rearLeftJoint"))   joints[REAR_LEFT]   = _model->GetJoint(_sdf->GetElement("rearLeftJoint")->GetValueString());
+//   if (_sdf->HasElement("rearRightJoint"))  joints[REAR_RIGHT]  = _model->GetJoint(_sdf->GetElement("rearRightJoint")->GetValueString());
+  if (_sdf->HasElement("frontLeftJoint"))  joints[FRONT_LEFT]  = _model->GetJoint(_sdf->GetElement("frontLeftJoint")->GetValue()->GetAsString());
+  if (_sdf->HasElement("frontRightJoint")) joints[FRONT_RIGHT] = _model->GetJoint(_sdf->GetElement("frontRightJoint")->GetValue()->GetAsString());
+  if (_sdf->HasElement("midLeftJoint"))    joints[MID_LEFT]    = _model->GetJoint(_sdf->GetElement("midLeftJoint")->GetValue()->GetAsString());
+  if (_sdf->HasElement("midRightJoint"))   joints[MID_RIGHT]   = _model->GetJoint(_sdf->GetElement("midRightJoint")->GetValue()->GetAsString());
+  if (_sdf->HasElement("rearLeftJoint"))   joints[REAR_LEFT]   = _model->GetJoint(_sdf->GetElement("rearLeftJoint")->GetValue()->GetAsString());
+  if (_sdf->HasElement("rearRightJoint"))  joints[REAR_RIGHT]  = _model->GetJoint(_sdf->GetElement("rearRightJoint")->GetValue()->GetAsString());
 
   if (!joints[FRONT_LEFT])  ROS_FATAL("diffdrive_plugin_6w error: The controller couldn't get front left joint");
   if (!joints[FRONT_RIGHT]) ROS_FATAL("diffdrive_plugin_6w error: The controller couldn't get front right joint");
@@ -124,17 +134,20 @@ void DiffDrivePlugin6W::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   if (!_sdf->HasElement("wheelSeparation"))
     wheelSep = 0.34;
   else
-    wheelSep = _sdf->GetElement("wheelSeparation")->GetValueDouble();
+//     wheelSep = _sdf->GetElement("wheelSeparation")->GetValueDouble();
+    wheelSep = _sdf->GetElement("wheelSeparation")->Get<double>();
 
   if (!_sdf->HasElement("wheelDiameter"))
     wheelDiam = 0.15;
   else
-    wheelDiam = _sdf->GetElement("wheelDiameter")->GetValueDouble();
+//     wheelDiam = _sdf->GetElement("wheelDiameter")->GetValueDouble();
+    wheelDiam = _sdf->GetElement("wheelDiameter")->Get<double>();
 
   if (!_sdf->HasElement("torque"))
     torque = 10.0;
   else
-    torque = _sdf->GetElement("torque")->GetValueDouble();
+//     torque = _sdf->GetElement("torque")->GetValueDouble();
+    torque = _sdf->GetElement("torque")->Get<double>();
 
   // start ros node
   if (!ros::isInitialized())
@@ -234,13 +247,21 @@ void DiffDrivePlugin6W::Update()
     joints[MID_RIGHT]->SetVelocity(0, wheelSpeed[1] / (wheelDiam / 2.0));
     joints[REAR_RIGHT]->SetVelocity(0, wheelSpeed[1] / (wheelDiam / 2.0));
 
-    joints[FRONT_LEFT]->SetMaxForce(0, torque);
-    joints[MID_LEFT]->SetMaxForce(0, torque);
-    joints[REAR_LEFT]->SetMaxForce(0, torque);
+//     joints[FRONT_LEFT]->SetMaxForce(0, torque);
+//     joints[MID_LEFT]->SetMaxForce(0, torque);
+//     joints[REAR_LEFT]->SetMaxForce(0, torque);
+// 
+//     joints[FRONT_RIGHT]->SetMaxForce(0, torque);
+//     joints[MID_RIGHT]->SetMaxForce(0, torque);
+//     joints[REAR_RIGHT]->SetMaxForce(0, torque);
+    
+    joints[FRONT_LEFT]->SetParam("fmax", 0, torque);
+    joints[MID_LEFT]->SetParam("fmax", 0, torque);
+    joints[REAR_LEFT]->SetParam("fmax", 0, torque);
 
-    joints[FRONT_RIGHT]->SetMaxForce(0, torque);
-    joints[MID_RIGHT]->SetMaxForce(0, torque);
-    joints[REAR_RIGHT]->SetMaxForce(0, torque);
+    joints[FRONT_RIGHT]->SetParam("fmax", 0, torque);
+    joints[MID_RIGHT]->SetParam("fmax", 0, torque);
+    joints[REAR_RIGHT]->SetParam("fmax", 0, torque);
   }
 
   //publish_odometry();
