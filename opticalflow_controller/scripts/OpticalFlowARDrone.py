@@ -76,12 +76,12 @@ class optical_flow:
         twist.linear.x = 0
         twist.angular.z = 0.0
         #print('Stop: ', l_r_sum, l_r_sum_abs, size_l, size_r)
-    elif abs(l_r_sum) <= (l_r_sum_abs * 20 / 100):
+    elif abs(l_r_sum) <= (l_r_sum_abs * 40 / 100):
         twist.linear.x = 1
         twist.angular.z = 0.0
         #print('Forward: ', l_r_sum, l_r_sum_abs, size_l, size_r)
     else:
-        twist.linear.x = 1
+        twist.linear.x = 0.25
         twist.angular.z = l_r_sum / l_r_sum_abs
         #print('Turn: ', l_r_sum, l_r_sum_abs, size_l, size_r)   
     
@@ -352,7 +352,7 @@ class optical_flow:
             vis, size_l, size_r = self.calc_mean(vis, start_p, end_p, good)
             draw_str(vis, (20, 40), 'Lenght left: %f' % size_l)
             draw_str(vis, (20, 60), 'Lenght right: %f' % size_r)
-            self.ctrl_pub.publish(self.reactive_controller2(size_l, size_r))
+            self.ctrl_pub.publish(self.reactive_controller(size_l, size_r))
     
         if self.frame_idx % self.detect_interval == 0:
             mask = np.zeros_like(frame_gray)
