@@ -1,2 +1,5 @@
 ardrone_joystick/build/
+ardrone_joystick/bin/
 joy/build/
+joy/joy_node
+
