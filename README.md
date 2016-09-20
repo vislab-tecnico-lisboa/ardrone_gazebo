@@ -60,16 +60,28 @@ Clone the git repository inside your catkin workspace src directory:
 
 ## Compile
 
+### 1 - Compile the ros package with catkin
 In order to compile the packages just run the following commands:
 
     $ cd <your_catkin_ws_directory>
     $ catkin_make
+
+### 1 - Compile the ardrone_helpers with rosmake
+In order to compile the joystick controller for the ardrone you need to compile it with rosmake:
+
+    $ cd <your_catkin_ws_directory>/ardrone_helpers
+    $ rosmake joy
+    $ rosmake ardrone_joystick
 
 ## Run
 
 To launch the simulator run ardrone_vislab launcher using roslaunch:
 
     $ roslaunch ardrone_vislab_gazebo ardrone_vislab.launch
+
+To launch the joystick controller using roslaunch:
+
+    $ roslaunch ardrone_joystick teleop.launch
 
 ## Issues
 
