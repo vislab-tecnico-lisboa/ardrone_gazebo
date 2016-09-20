@@ -41,3 +41,78 @@ $ echo "source <your_catkin_ws_directory>/devel/setup.bash" >> ~/.bashrc
 $ cd <your_catkin_ws_directory>/src
 
 $ git clone https://github.com/vislab-tecnico-lisboa/ardrone_gazebo.git
+
+![ArDrone inside the simulated lab map](images/ardrone_simulator.jpg)
+
+## Packages Description
+
+TODO
+
+## Environment
+
+* Operating System (one of the two)
+  * [Ubuntu 14.04](http://releases.ubuntu.com/trusty/) - or newer
+* Middleware
+  * [ROS](http://www.ros.org/) - depending on the installed OS (Indigo, Jade or Kinetic)
+* Other Dependencies
+  * [GAZEBO](http://gazebosim.org/) - It needs GAZEBO 5 or newer
+
+At any time you might need to install some more specific dependencies (like some missing ROS packages). Please open an issue in case you can't solve these or other dependencies.
+
+## Download and Setup
+
+1 - install ros full desktop following the installation instructions on the official ros website: www.ros.org (tested on indigo, jade and kinetic)
+
+2 - install the ardrone_autonomy package. If you are on Ubuntu simply write on your console:
+
+    $ sudo apt-get install ros-<your-ros-distribution>-ardrone_autonomy
+
+3 - if you are using ros indigo install gazebo5, 6 or 7 from the osrfoundation repository. look at this page for more details: http://gazebosim.org/tutorials?tut=ros_wrapper_versions
+
+4 - if you don't have it already, create a catkin workspace folder (for more informations look at this link: http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment):
+
+    $ mkdir catkin_ws
+
+Create a folder named src inside it:
+
+    $ cd catkin_ws
+    $ mkdir src
+
+Run catkin_init_workspace inside the src directory:
+
+    $ cd src
+    $ catkin_init_workspace
+
+Now source your new setup.bash file inside your .bashrc:
+
+    $ echo "source <your_catkin_ws_directory>/devel/setup.bash" >> ~/.bashrc
+    $ source ~/.bashrc
+
+
+5 - clone this git repository inside your catkin workspace src directory:
+
+    $ cd <your_catkin_ws_directory>/src
+    $ git clone https://github.com/vislab-tecnico-lisboa/ardrone_gazebo.git
+
+6 - add the ardrone_vislab_gazebo folder to your gazebo model path:
+
+    $ echo "export GAZEBO_MODEL_PATH=<your_catkin_ws_directory>/src/ardrone_gazebo/ardrone_vislab/ardrone_vislab_gazebo:$GAZEBO_MODEL_PATH" >> ~/.bashrc
+    $ source ~/.bashrc
+
+## Compile
+
+In order to compile the packages just run the following commands:
+
+    $ cd <your_catkin_ws_directory>
+    $ catkin_make
+
+## Run
+
+To launch the simulator run ardrone_vislab launcher using roslaunch:
+
+    $ roslaunch ardrone_vislab_gazebo ardrone_vislab.launch
+
+## Issues
+
+All kind of issues and contributions will be very welcome. Please get in touch on [our issues page](https://github.com/vislab-tecnico-lisboa/vizzy/issues) when help is needed!
+
