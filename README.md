@@ -26,7 +26,7 @@ Install ros full desktop following the installation instructions on the official
 ### 2 - Install the ardrone_autonomy package
 If you are on Ubuntu simply write on your console:
 
-    $ sudo apt-get install ros-<your-ros-distribution>-ardrone_autonomy
+    $ sudo apt-get install ros-<your-ros-distribution>-ardrone-autonomy
 
 ### 3 - Install gazebo5 or newer
 If you are using ros indigo install gazebo5, 6 or 7 from the osrfoundation repository. look at this page for more details: http://gazebosim.org/tutorials?tut=ros_wrapper_versions
