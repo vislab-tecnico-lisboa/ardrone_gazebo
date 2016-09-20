@@ -274,7 +274,7 @@ class optical_flow:
         deltaT = time_stamp - self.old_time_stamp
         self.old_time_stamp = time_stamp
         
-        print("TS: ", deltaT, imu_deltaT)        
+        #print("TS: ", deltaT, imu_deltaT)        
         
         
         try:
@@ -370,6 +370,7 @@ class optical_flow:
         self.prev_gray = frame_gray
     
         cv2.imshow("Image window", vis)
+        cv2.waitKey(1)
 
   def callback_imu(self,data):
     self.imu_data.append(data)
@@ -381,8 +382,8 @@ class optical_flow:
 
 
 def main(args):
-  cv2.startWindowThread()
-  cv2.namedWindow("Image window")
+  #cv2.startWindowThread()
+  #cv2.namedWindow("Image window")
   rospy.init_node('optical_flow', anonymous=True)
   
   of = optical_flow()
