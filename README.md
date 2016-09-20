@@ -58,12 +58,6 @@ Clone the git repository inside your catkin workspace src directory:
     $ cd <your_catkin_ws_directory>/src
     $ git clone https://github.com/vislab-tecnico-lisboa/ardrone_gazebo.git
 
-### 6 - Update the GAZEBO_MODEL_PATH
-Add the ardrone_vislab_gazebo folder to your gazebo model path:
-
-    $ echo "export GAZEBO_MODEL_PATH=<your_catkin_ws_directory>/src/ardrone_gazebo/ardrone_vislab/ardrone_vislab_gazebo:$GAZEBO_MODEL_PATH" >> ~/.bashrc
-    $ source ~/.bashrc
-
 ## Compile
 
 In order to compile the packages just run the following commands:
