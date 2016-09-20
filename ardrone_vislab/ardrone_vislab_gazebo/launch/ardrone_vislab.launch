@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
+  <env name="GAZEBO_MODEL_PATH" value="$(find ardrone_vislab_gazebo):$(optenv GAZEBO_MODEL_PATH)"/>
+  
   <arg name="use_sim_time" default="true"/>
   <arg name="gui" default="true"/>
   <arg name="world" default="isr_7th_floor.world" />
