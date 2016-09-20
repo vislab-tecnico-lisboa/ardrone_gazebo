@@ -30,7 +30,7 @@
       <link name="body">
         <collision name="collision">
           <geometry>
-            <mesh><uri>model://media/models/7thmap_new/7thmap.dae</uri></mesh>
+            <mesh><uri>model://models/7thmap_new/7thmap.dae</uri></mesh>
           </geometry>
           <surface>
             <friction>
@@ -60,7 +60,7 @@
         </collision>
         <visual name="visual">
           <geometry>
-            <mesh><uri>model://media/models/7thmap_new/7thmap.dae</uri></mesh>
+            <mesh><uri>model://models/7thmap_new/7thmap.dae</uri></mesh>
           </geometry>
           <material>
             <script>
