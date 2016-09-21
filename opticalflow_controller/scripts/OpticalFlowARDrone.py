@@ -24,7 +24,7 @@ feature_params = dict(maxCorners = 500,
                       minDistance = 7,
                       blockSize = 7)
 
-front_time = 200
+front_time = 1000
 turn_time = 500
 
 class optical_flow:
@@ -32,6 +32,9 @@ class optical_flow:
   def __init__(self):
     self.past_time = int(round(time.time() * 1000))
     self.turn_flag = False
+    self.print_flag = True
+    self.ctrl_flag = False
+    self.rot_rem_flag = True
     self.counter = -1
     
     self.old_time_stamp = 0
@@ -65,7 +68,32 @@ class optical_flow:
   
   def taking_off(self):          
     print("Taking off!")
-    self.takeoff_pub.publish(Empty()) 
+    self.takeoff_pub.publish(Empty())
+    
+  def print_on_off(self):
+    if self.print_flag:          
+      print("printing off!")
+      self.print_flag = False
+    else:
+      print("printing on!")
+      self.print_flag = True
+      
+  def ctrl_on_off(self):
+    if self.ctrl_flag:          
+      print("controller off!")
+      self.ctrl_flag = False
+    else:
+      print("controller on!")
+      self.ctrl_flag = True
+      
+  def rot_rem_on_off(self):
+    if self.rot_rem_flag:          
+      print("Rotation correction removed")
+      self.rot_rem_flag = False
+    else:
+      print("Rotation correction added")
+      self.rot_rem_flag = True
+
 
   def reactive_controller(self, size_l, size_r):
     twist = Twist()
@@ -76,12 +104,12 @@ class optical_flow:
         twist.linear.x = 0
         twist.angular.z = 0.0
         #print('Stop: ', l_r_sum, l_r_sum_abs, size_l, size_r)
-    elif abs(l_r_sum) <= (l_r_sum_abs * 40 / 100):
+    elif abs(l_r_sum) <= (l_r_sum_abs * 20 / 100):
         twist.linear.x = 1
         twist.angular.z = 0.0
         #print('Forward: ', l_r_sum, l_r_sum_abs, size_l, size_r)
     else:
-        twist.linear.x = 0.25
+        twist.linear.x = 1
         twist.angular.z = l_r_sum / l_r_sum_abs
         #print('Turn: ', l_r_sum, l_r_sum_abs, size_l, size_r)   
     
@@ -92,7 +120,7 @@ class optical_flow:
     l_r_sum = size_l + size_r
     l_r_sum_abs = abs(size_l) + abs(size_r)
 
-    if ((abs(l_r_sum) <= (l_r_sum_abs * 30 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
+    if ((abs(l_r_sum) <= (l_r_sum_abs * 50 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
 #    if ((abs(l_r_sum) <= 0.5) or (self.counter <= front_time)) and (self.turn_flag == False):
       if self.counter == -1:
         self.past_time = int(round(time.time() * 1000))
@@ -164,16 +192,18 @@ class optical_flow:
       mean_r_vx /= total_r
       mean_r_vy /= total_r
       size_r = size_r / total_r * np.sign(mean_r_vx)
-    cv2.line(vis, (np.int32(w / 4), np.int32(h / 2)),
-            (np.int32(w / 4 + size_l), np.int32(h / 2)),
-            (0, 0, 255), 1, 8, 0)
-    cv2.circle(vis, (np.int32(w / 4 + size_l), np.int32(h / 2)),
-               2, (0, 0, 255), -1)
-    cv2.line(vis, (np.int32(w * 3 / 4), np.int32(h / 2)),
-            (np.int32(w * 3 / 4 + size_r), np.int32(h / 2)),
-            (0, 0, 255), 1, 8, 0)
-    cv2.circle(vis, (np.int32(w * 3 / 4 + size_r), np.int32(h / 2)),
-               2, (0, 0, 255), -1)
+    
+    if self.print_flag:
+      cv2.line(vis, (np.int32(w / 4), np.int32(h / 2)),
+              (np.int32(w / 4 + size_l), np.int32(h / 2)),
+              (0, 0, 255), 1, 8, 0)
+      cv2.circle(vis, (np.int32(w / 4 + size_l), np.int32(h / 2)),
+                 2, (0, 0, 255), -1)
+      cv2.line(vis, (np.int32(w * 3 / 4), np.int32(h / 2)),
+              (np.int32(w * 3 / 4 + size_r), np.int32(h / 2)),
+              (0, 0, 255), 1, 8, 0)
+      cv2.circle(vis, (np.int32(w * 3 / 4 + size_r), np.int32(h / 2)),
+                 2, (0, 0, 255), -1)
     return vis, size_l, size_r
     
   def new_ending_point(self, x, y, imu_x, imu_y, imu_z, K, deltaT):
@@ -302,57 +332,68 @@ class optical_flow:
                 #nino part
                 #removing rotations
                 (xold, yold) = np.float32(tr[-1])
-                (xold2, yold2) = np.float32(tr_norot[-1])
-                xrot, yrot = self.new_ending_point(xold, yold, imu_x, imu_y, imu_z, K, imu_deltaT)
-                x1 = np.float32((x - xold) + (xrot - xold) + xold2)
-                y1 = np.float32((y - yold) + (yrot - yold) + yold2)
-                #x1 = np.float32(+(xrot - xold) + xold2)
-                #y1 = np.float32(+(yrot - yold) + yold2)
-                #x1 = np.float32((x - xold) + xold2)
-                #y1 = np.float32((y - yold) + yold2)
-                tr_norot.append((x1, y1))
-                
-#                cx = P[0][2]
-#                cy = P[1][2]
-#                xrot, yrot = self.new_ending_point(cx, cy, imu_x, imu_y, imu_z, K, imu_deltaT)
-#                x1 = np.float32((x - xold) + (xrot - cx) + xold2)
-#                y1 = np.float32((y - yold) + (yrot - cy) + yold2)
-#                tr_norot.append((x1, y1))
-                
-                #print("x vs x1: ", x, x1)
-                #print("xold vs xold2: ", xold, xold2)
-              
-                
-#                print("Rotations: ", x1, x2, y1, y2)
-               
+                if self.rot_rem_flag:
+                  (xold2, yold2) = np.float32(tr_norot[-1])
+                  xrot, yrot = self.new_ending_point(xold, yold, imu_x, imu_y, imu_z, K, imu_deltaT)
+                  x1 = np.float32((x - xold) + (xrot - xold) + xold2)
+                  y1 = np.float32((y - yold) + (yrot - yold) + yold2)
+                  #x1 = np.float32(x + (xrot - xold))
+                  #y1 = np.float32(y + (yrot - yold))
+                  tr_norot.append((x1, y1))
                 tr.append((x, y))
                 if len(tr) > self.track_len:
-                    del tr[0]
+                  if self.rot_rem_flag:
                     del tr_norot[0]
+                  del tr[0]
                 #nino part   
                 #mean vectors
-#                start_p.append(tr[0])
-#                end_p.append((x, y))
-                start_p.append(tr_norot[0])
-                end_p.append((x1, y1))
-                
-                
-                new_tracks.append(tr)
-                new_tracks_norot.append(tr_norot)
-#                cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
-                #Nino's print
-                cv2.circle(vis, (x1, y1), 2, (0, 255, 0), -1)
-            self.tracks = new_tracks
-            self.tracks_norot = new_tracks_norot
-#            cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 255, 0))
-            #Nino's print
-            cv2.polylines(vis, [np.int32(tr) for tr in self.tracks_norot], False, (0, 255, 0))
+                start_p.append((xold, yold))
+                if self.rot_rem_flag:
+                  #start_p.append(tr_norot[0])
+                  #end_p.append((x1, y1))
+                  (sp_x_old, sp_y_old) = np.float32(tr_norot[0])
+                  ep_x = xold + (x1 - sp_x_old)
+                  ep_y = yold + (y1 - sp_y_old)
+                  
+                else:
+                  #start_p.append(tr[0])
+                  #end_p.append((x, y))
+                  (sp_x_old, sp_y_old) = np.float32(tr[0])
+                  ep_x = xold + (x - sp_x_old)
+                  ep_y = yold + (y - sp_y_old)
+                end_p.append((ep_x, ep_y))
 
-            draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
-            vis, size_l, size_r = self.calc_mean(vis, start_p, end_p, good)
-            draw_str(vis, (20, 40), 'Lenght left: %f' % size_l)
-            draw_str(vis, (20, 60), 'Lenght right: %f' % size_r)
-            self.ctrl_pub.publish(self.reactive_controller(size_l, size_r))
+                if self.rot_rem_flag:
+                  new_tracks_norot.append(tr_norot)
+                new_tracks.append(tr)
+                
+                if self.print_flag:
+#                  if self.rot_rem_flag:
+#                    #Nino's print
+#                    cv2.circle(vis, (x1, y1), 2, (0, 255, 0), -1)
+#                  else:
+#                    cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
+                  cv2.circle(vis, (ep_x, ep_y), 2, (0, 255, 0), -1)
+                  cv2.line(vis, (xold, yold), (ep_x, ep_y), (0, 255, 0), 1, 8, 0)
+            if self.rot_rem_flag:
+              self.tracks_norot = new_tracks_norot
+            self.tracks = new_tracks
+            
+#            if self.print_flag:
+#              if self.rot_rem_flag:
+#                #Nino's print
+#                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks_norot], False, (0, 255, 0))
+#              else:
+#                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 255, 0))
+#              draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
+            
+            if self.ctrl_flag:
+              vis, size_l, size_r = self.calc_mean(vis, start_p, end_p, good)            
+              if self.print_flag:             
+                draw_str(vis, (20, 40), 'Lenght left: %f' % size_l)
+                draw_str(vis, (20, 60), 'Lenght right: %f' % size_r)
+            
+              self.ctrl_pub.publish(self.reactive_controller2(size_l, size_r))
     
         if self.frame_idx % self.detect_interval == 0:
             mask = np.zeros_like(frame_gray)
@@ -400,6 +441,12 @@ def main(args):
           of.taking_off()
       if key == 'l':
           of.landing()
+      if key == 'p':
+          of.print_on_off()
+      if key == 'c':
+          of.ctrl_on_off()
+      if key == 'r':
+          of.rot_rem_on_off()
   
   print("Shutting down")    
   of.landing()    
