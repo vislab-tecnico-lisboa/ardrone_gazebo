@@ -27,6 +27,8 @@ feature_params = dict(maxCorners = 500,
 front_time = 200
 turn_time = 500
 
+of_th = 60
+
 class optical_flow:
 
   def __init__(self):
@@ -34,6 +36,7 @@ class optical_flow:
     self.turn_flag = False
     self.print_flag = True
     self.ctrl_flag = False
+    self.ctrl_pol = 1
     self.rot_rem_flag = True
     self.counter = -1
     
@@ -82,9 +85,21 @@ class optical_flow:
     if self.ctrl_flag:          
       print("controller off!")
       self.ctrl_flag = False
+      self.ctrl_pub.publish(self.stop_controller())
     else:
       print("controller on!")
       self.ctrl_flag = True
+      
+  def ctrl_pol_switch(self):
+    if self.ctrl_pol == 1:          
+      print("control policy 2 active")
+      self.ctrl_pol = 2
+    elif self.ctrl_pol == 2:
+      print("control policy 3 active")
+      self.ctrl_pol = 3
+    else:
+      print("control policy 1 active")
+      self.ctrl_pol = 1
       
   def rot_rem_on_off(self):
     if self.rot_rem_flag:          
@@ -95,38 +110,41 @@ class optical_flow:
       self.rot_rem_flag = True
 
 
-  def reactive_controller(self, size_l, size_r):
+  def reactive_controller(self, size_l, size_r, num_feat):
     twist = Twist()
     l_r_sum = size_l + size_r
     l_r_sum_abs = abs(size_l) + abs(size_r)
 
-    if l_r_sum_abs >= 50:
-        twist.linear.x = 0
-        twist.angular.z = 0.0
+    if num_feat >= 500:
+        twist.linear.x = -0.25
+        twist.angular.z = 0.25
         #print('Stop: ', l_r_sum, l_r_sum_abs, size_l, size_r)
-    elif abs(l_r_sum) <= (l_r_sum_abs * 20 / 100):
-        twist.linear.x = 0.5
+    elif abs(l_r_sum) <= (l_r_sum_abs * 30 / 100):
+        twist.linear.x = 0.25
         twist.angular.z = 0.0
         #print('Forward: ', l_r_sum, l_r_sum_abs, size_l, size_r)
     else:
-        twist.linear.x = 0.5
-        twist.angular.z = l_r_sum / l_r_sum_abs
+        twist.linear.x = 0.25
+        twist.angular.z = l_r_sum / l_r_sum_abs * 0.5
         #print('Turn: ', l_r_sum, l_r_sum_abs, size_l, size_r)   
     
     return twist
 
-  def reactive_controller2(self, size_l, size_r):
+  def reactive_controller2(self, size_l, size_r, num_feat):
     twist = Twist()
     l_r_sum = size_l + size_r
     l_r_sum_abs = abs(size_l) + abs(size_r)
-
-    if ((abs(l_r_sum) <= (l_r_sum_abs * 10 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
+    
+    if num_feat >= 500:
+        twist.linear.x = -0.25
+        twist.angular.z = 0.25
+    elif ((abs(l_r_sum) <= (l_r_sum_abs * 30 / 100)) or (self.counter <= front_time)) and (self.turn_flag == False):
 #    if ((abs(l_r_sum) <= 0.5) or (self.counter <= front_time)) and (self.turn_flag == False):
       if self.counter == -1:
         self.past_time = int(round(time.time() * 1000))
       time_now = int(round(time.time() * 1000))
       self.counter = time_now - self.past_time
-      twist.linear.x = 0.50
+      twist.linear.x = 0.25
       twist.angular.z = 0.0
     else:
       if self.turn_flag == False:
@@ -136,12 +154,52 @@ class optical_flow:
       if self.counter > turn_time:
         self.turn_flag = False
         self.counter = -1
-      twist.linear.x = 0.00
-      twist.angular.z = np.sign(l_r_sum) * 1.00
+      twist.linear.x = 0.25
+      twist.angular.z = np.sign(l_r_sum) * 0.50
       #print('Turn: ', self.counter)
       #twist.linear.x = 0.50
       #twist.angular.z = l_r_sum / 20
 
+    return twist
+
+  def reactive_controller3(self, size_l, size_r, num_feat):
+    twist = Twist()
+    of_div = size_r - size_l
+    of_diff = abs(size_r) - abs(size_l)
+    
+    if num_feat >= 500:
+        twist.linear.x = 0
+        twist.angular.z = np.sign(of_diff) * 0.50
+    elif ((of_div <= of_th) or (self.counter <= front_time)) and (self.turn_flag == False):
+#    if ((abs(l_r_sum) <= 0.5) or (self.counter <= front_time)) and (self.turn_flag == False):
+      if self.counter == -1:
+        self.past_time = int(round(time.time() * 1000))
+      time_now = int(round(time.time() * 1000))
+      self.counter = time_now - self.past_time
+      twist.linear.x = 0.25
+      twist.angular.z = 0.0
+    else:
+      if self.turn_flag == False:
+        self.past_time = int(round(time.time() * 1000))
+        self.turn_flag = True
+      self.counter = int(round(time.time() * 1000)) - self.past_time
+      if self.counter > turn_time:
+        self.turn_flag = False
+        self.counter = -1
+      twist.linear.x = 0.0
+      twist.angular.z = np.sign(of_diff) * 0.50
+      #print('Turn: ', self.counter)
+      #twist.linear.x = 0.50
+      #twist.angular.z = l_r_sum / 20
+
+    return twist
+    
+  def stop_controller(self):
+    twist = Twist()
+    
+    twist.linear.x = 0
+    twist.angular.z = 0
+    
     return twist
 
   def calc_mean(self, img, p0, p1, good):
@@ -339,32 +397,47 @@ class optical_flow:
                   y1 = np.float32((y - yold) + (yrot - yold) + yold2)
                   #x1 = np.float32(x + (xrot - xold))
                   #y1 = np.float32(y + (yrot - yold))
-                  tr_norot.append((x1, y1))
+                else:
+                  x1 = x
+                  y1 = y
+                tr_norot.append((x1, y1))
                 tr.append((x, y))
                 if len(tr) > self.track_len:
-                  if self.rot_rem_flag:
-                    del tr_norot[0]
+                  del tr_norot[0]
                   del tr[0]
                 #nino part   
                 #mean vectors
-                start_p.append((xold, yold))
+                sp_x = x
+                sp_y = y
+                start_p.append((sp_x, sp_y))
                 if self.rot_rem_flag:
                   #start_p.append(tr_norot[0])
                   #end_p.append((x1, y1))
                   (sp_x_old, sp_y_old) = np.float32(tr_norot[0])
-                  ep_x = xold + (x1 - sp_x_old)
-                  ep_y = yold + (y1 - sp_y_old)
+                  ep_x = sp_x + (x1 - sp_x_old)
+                  ep_y = sp_y + (y1 - sp_y_old)
                   
                 else:
                   #start_p.append(tr[0])
                   #end_p.append((x, y))
                   (sp_x_old, sp_y_old) = np.float32(tr[0])
-                  ep_x = xold + (x - sp_x_old)
-                  ep_y = yold + (y - sp_y_old)
+                  ep_x = sp_x + (x - sp_x_old)
+                  ep_y = sp_y + (y - sp_y_old)
                 end_p.append((ep_x, ep_y))
+#                if self.rot_rem_flag:
+#                  ep_x = x1
+#                  ep_y = y1
+#                  (sp_x_old, sp_y_old) = np.float32(tr_norot[0])
+#                else:
+#                  ep_x = x
+#                  ep_y = y
+#                  (sp_x_old, sp_y_old) = np.float32(tr[0])
+#                sp_x = x - (ep_x - sp_x_old)
+#                sp_y = y - (ep_y - sp_y_old)
+#                start_p.append((sp_x, sp_y))
+#                end_p.append((ep_x, ep_y))
 
-                if self.rot_rem_flag:
-                  new_tracks_norot.append(tr_norot)
+                new_tracks_norot.append(tr_norot)
                 new_tracks.append(tr)
                 
                 if self.print_flag:
@@ -374,26 +447,28 @@ class optical_flow:
 #                  else:
 #                    cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
                   cv2.circle(vis, (ep_x, ep_y), 2, (0, 255, 0), -1)
-                  cv2.line(vis, (xold, yold), (ep_x, ep_y), (0, 255, 0), 1, 8, 0)
-            if self.rot_rem_flag:
-              self.tracks_norot = new_tracks_norot
+                  cv2.line(vis, (sp_x, sp_y), (ep_x, ep_y), (0, 255, 0), 1, 8, 0)
+            self.tracks_norot = new_tracks_norot
             self.tracks = new_tracks
             
-#            if self.print_flag:
+            if self.print_flag:
+              draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
 #              if self.rot_rem_flag:
 #                #Nino's print
 #                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks_norot], False, (0, 255, 0))
 #              else:
 #                cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 255, 0))
-#              draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
             
             if self.ctrl_flag:
               vis, size_l, size_r = self.calc_mean(vis, start_p, end_p, good)            
-              if self.print_flag:             
+              if self.print_flag:
                 draw_str(vis, (20, 40), 'Lenght left: %f' % size_l)
                 draw_str(vis, (20, 60), 'Lenght right: %f' % size_r)
-            
-              self.ctrl_pub.publish(self.reactive_controller(size_l, size_r))
+              
+              if self.ctrl_pol == 1:
+                self.ctrl_pub.publish(self.reactive_controller(size_l, size_r, len(self.tracks)))
+              else:
+                self.ctrl_pub.publish(self.reactive_controller2(size_l, size_r, len(self.tracks)))
     
         if self.frame_idx % self.detect_interval == 0:
             mask = np.zeros_like(frame_gray)
@@ -431,6 +506,19 @@ def main(args):
   time.sleep(1)
   #of.taking_off()
   
+  print("<------Optical Flow reactive controller inspired by flies (Author: Nino Cauli)------>")
+  print("")
+  print("Press the following keys in order to execute the correspondent commands:")
+  print("q ---> quit")
+  print("t ---> take off")
+  print("l ---> land")
+  print("p ---> print the OF on/off")
+  print("c ---> reactive controller on/off")
+  print("s ---> control policy switch")
+  print("r ---> remove the rotational component from the OF on/off")
+  print("<----------------------------------------------------------------------------------->")
+  
+  
   key = ''  
   
   while not rospy.is_shutdown():
@@ -445,6 +533,8 @@ def main(args):
           of.print_on_off()
       if key == 'c':
           of.ctrl_on_off()
+      if key == 's':
+          of.ctrl_pol_switch()
       if key == 'r':
           of.rot_rem_on_off()
   
