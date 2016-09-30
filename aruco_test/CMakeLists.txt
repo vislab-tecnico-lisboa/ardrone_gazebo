@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(aruco_test)
 
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -122,6 +124,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  /home/nigno/Robot/aruco-2.0.10/src
 )
 
 ## Declare a C++ library
@@ -142,10 +145,12 @@ add_executable(aruco_test src/aruco_test.cpp)
 add_dependencies(aruco_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+FIND_LIBRARY(ARUCO_LIBRARY aruco /home/nigno/Robot/aruco-2.0.10/build)
 target_link_libraries(
   aruco_test
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
+  ${ARUCO_LIBRARY}
 )
 
 #############

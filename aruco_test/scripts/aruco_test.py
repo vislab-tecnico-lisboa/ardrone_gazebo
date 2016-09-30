@@ -20,9 +20,9 @@ class ArucoTest:
     self.marker_size = 0.15        
       
     # load board and camera parameters
-    self.boardconfig = aruco.BoardConfiguration("../medias/map.yml")   
+    self.boardconfig = aruco.BoardConfiguration("../media/map.yml")   
     self.camparam = aruco.CameraParameters()
-    self.camparam.readFromXMLFile("../medias/front_camera.yml")   
+    self.camparam.readFromXMLFile("../media/front_camera.yml")   
     
     # create detector and set parameters
     self.detector = aruco.BoardDetector()

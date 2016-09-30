@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- ROS launcher for the aruco_test  -->
+<launch>
+  <node pkg="aruco_test" type="aruco_test" name="aruco_test_node">
+    <param name="aruco_map_file" value="$(find aruco_test)/media/map.yml" />
+    <param name="aruco_front_camera_file" value="$(find aruco_test)/media/front_camera.yml" />
+  </node>
+</launch>
