@@ -2,6 +2,7 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <geometry_msgs/Twist.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
@@ -22,7 +23,7 @@ private:
   ros::NodeHandle nh_;
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
-  image_transport::Publisher image_pub_;
+  ros::Publisher aruco_pose_pub_;
   
   bool first_image = true;
   
@@ -52,33 +53,31 @@ public:
     // Subscrive to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/ardrone/image_raw", 1, 
       &ArucoTest::imageCb, this);
-    image_pub_ = it_.advertise("/ardrone/aruco/image_raw", 1);
+    aruco_pose_pub_ = nh_.advertise<geometry_msgs::Twist>("/ardrone/aruco/pose", 1);
 
     cv::namedWindow(OPENCV_WINDOW);
     
     // aruco part
-    ros::NodeHandle private_node_handle;
-    private_node_handle.param<std::string>("", aruco_map_file, "aruco_map_file");
-    private_node_handle.param<std::string>("", aruco_front_camera_file, "aruco_front_camera_file");
+    ros::NodeHandle private_node_handle("~");
+    private_node_handle.param<std::string>("aruco_map_file", aruco_map_file, "aruco_map_file");
+    private_node_handle.param<std::string>("aruco_front_camera_file", aruco_front_camera_file, "aruco_front_camera_file");
     
     corner = 0; //1 subpixel
     index = 0;
     
-    cout << aruco_map_file;
+    //TheMarkerMapConfig.readFromFile("/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/map.yml");
+    TheMarkerMapConfig.readFromFile(aruco_map_file);
     
-    TheMarkerMapConfig.readFromFile("/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/map.yml");
-    //TheMarkerMapConfig.readFromFile(aruco_map_file);
-    
-    TheMarkerMapConfigFile = "/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/map.yml";
-    //TheMarkerMapConfigFile = aruco_map_file;
+    //TheMarkerMapConfigFile = "/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/map.yml";
+    TheMarkerMapConfigFile = aruco_map_file;
     TheMarkerSize = 0.15;
     
     // read first image to get the dimensions
     //TheInputImage = cv_ptr->image;
     
     // read camera parameters if passed
-    //TheCameraParameters.readFromXMLFile(aruco_front_camera_file);
-    TheCameraParameters.readFromXMLFile("/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/front_camera.yml");
+    TheCameraParameters.readFromXMLFile(aruco_front_camera_file);
+    //TheCameraParameters.readFromXMLFile("/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/front_camera.yml");
     //TheCameraParameters.resize(TheInputImage.size());
       
     //prepare the detector
@@ -123,6 +122,8 @@ public:
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
   {
+    geometry_msgs::Twist aruco_pose;
+    
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -155,7 +156,13 @@ public:
       if ( TheMSPoseTracker.estimatePose(detected_markers)){
 	aruco::CvDrawingUtils::draw3dAxis(TheInputImageCopy,  TheCameraParameters,TheMSPoseTracker.getRvec(),TheMSPoseTracker.getTvec(),TheMarkerMapConfig[0].getMarkerSize()*2);
 	frame_pose_map.insert(make_pair(index,TheMSPoseTracker.getRTMatrix() ));
-	cout<<"pose rt="<<TheMSPoseTracker.getRvec()<<" "<<TheMSPoseTracker.getTvec()<<endl;
+        //cout << "pose rt = "<< TheMSPoseTracker.getRvec() << " " << TheMSPoseTracker.getTvec() << endl;
+	aruco_pose.linear.x = TheMSPoseTracker.getTvec().at<float>(0);
+	aruco_pose.linear.y = TheMSPoseTracker.getTvec().at<float>(1);
+	aruco_pose.linear.z = TheMSPoseTracker.getTvec().at<float>(2);
+	aruco_pose.angular.x = TheMSPoseTracker.getRvec().at<float>(0);
+	aruco_pose.angular.y = TheMSPoseTracker.getRvec().at<float>(1);
+	aruco_pose.angular.z = TheMSPoseTracker.getRvec().at<float>(2);
       }
     }
     
@@ -167,8 +174,8 @@ public:
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
     cv::waitKey(1);
     
-    // Output modified video stream
-    image_pub_.publish(cv_ptr->toImageMsg());
+    // Output aruco pose
+    aruco_pose_pub_.publish(aruco_pose);
   }
 };
 
