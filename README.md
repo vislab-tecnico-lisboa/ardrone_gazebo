@@ -5,11 +5,14 @@ Gazebo simulator test environment for the Parrot ArDrone. The world is a simulat
 
 ## Packages Description
 
-TODO
+* [ardrone_helpers](ardrone_helpers): Contains the joystick controller for the ardrone.
+* [ardrone_vislab](ardrone_vislab): Contains the gazebo world files of the lab map, the ardrone model with the plugins and the simulation launch files.
+* [aruco_test](aruco_test): Contains the aruco board recognition package. It recognises the board in the simulator and publishes its position and pose on a ros topic (/ardrone/aruco/pose)
+* [opticalflow_controller](opticalflow_controller): Contains a python reactive controller based on optical flow and inspired by flies.
 
 ## Environment
 
-* Operating System (one of the two)
+* Operating System
   * [Ubuntu 14.04](http://releases.ubuntu.com/trusty/) - or newer
 * Middleware
   * [ROS](http://www.ros.org/) - depending on the installed OS (Indigo, Jade or Kinetic)
@@ -31,7 +34,11 @@ If you are on Ubuntu simply write on your console:
 ### 3 - Install gazebo5 or newer
 If you are using ros indigo install gazebo5, 6 or 7 from the osrfoundation repository. look at this page for more details: http://gazebosim.org/tutorials?tut=ros_wrapper_versions
 
-### 4 - Create a catkin workspace
+### 4 - Install the aruco lib
+In order to install the aruco lib follow the instructions of the readme in the official repository:
+https://sourceforge.net/projects/aruco/files/2.0.10/
+
+### 5 - Create a catkin workspace
 If you don't have it already, create a catkin workspace folder (for more informations look at this link: http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment):
 
     $ mkdir catkin_ws
@@ -52,7 +59,7 @@ Now source your new setup.bash file inside your .bashrc:
     $ source ~/.bashrc
 
 
-### 5 - Clone the git repository
+### 6 - Clone the git repository
 Clone the git repository inside your catkin workspace src directory:
 
     $ cd <your_catkin_ws_directory>/src
@@ -66,7 +73,7 @@ In order to compile the packages just run the following commands:
     $ cd <your_catkin_ws_directory>
     $ catkin_make
 
-### 1 - Compile the ardrone_helpers with rosmake
+### 2 - Compile the ardrone_helpers with rosmake
 In order to compile the joystick controller for the ardrone you need to compile it with rosmake:
 
     $ cd <your_catkin_ws_directory>/ardrone_helpers
@@ -75,13 +82,25 @@ In order to compile the joystick controller for the ardrone you need to compile 
 
 ## Run
 
-To launch the simulator run ardrone_vislab launcher using roslaunch:
+### 1 - Runnig the simulation environment without AruCo
+To launch the simulator without AruCo run ardrone_vislab launcher using roslaunch:
 
     $ roslaunch ardrone_vislab_gazebo ardrone_vislab.launch
 
+### 2 - Runnig the simulation environment with AruCo
+To launch the simulator with AruCo run ardrone_vislab launcher using roslaunch:
+
+    $ roslaunch ardrone_vislab_gazebo ardrone_vislab.launch world:="isr_7th_floor_aruco.world"
+
+### 3 - Runnig the joystick controller
 To launch the joystick controller using roslaunch:
 
     $ roslaunch ardrone_joystick teleop.launch
+
+### 4 - Runnig the AruCo recognition package
+To launch the AruCo recognition package using roslaunch:
+
+    $ roslaunch aruco_test aruco_test.launch
 
 ## Issues
 
