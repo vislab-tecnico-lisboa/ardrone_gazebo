@@ -70,7 +70,7 @@ public:
     
     //TheMarkerMapConfigFile = "/home/nigno/Robot/catkinWS/src/ardrone_gazebo/aruco_test/media/map.yml";
     TheMarkerMapConfigFile = aruco_map_file;
-    TheMarkerSize = 0.15;
+    TheMarkerSize = 0.156;
     
     // read first image to get the dimensions
     //TheInputImage = cv_ptr->image;
