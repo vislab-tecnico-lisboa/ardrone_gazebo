@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!-- ROS launcher for the path_generatort  -->
+<launch>
+  <node pkg="path_generator" name="path_generator" type="path_generator.py" />
+</launch>

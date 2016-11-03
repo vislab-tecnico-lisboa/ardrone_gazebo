@@ -1,88 +1,101 @@
 #include <iostream>
 
 #include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
+#include <ardrone_autonomy/Navdata.h>
 
-class RobotDriver
+#define g 9.8
+
+class Positions
 {
+	
 private:
-  //! The node handle we'll be using
-  ros::NodeHandle nh_;
-  //! We will be publishing to the "/base_controller/command" topic to issue commands
-  ros::Publisher cmd_vel_pub_;
+
+	ros::NodeHandle nh_;
+	ros::Subscriber navdata_sub;
+
+	float pos_x;
+	float pos_y;
+	float pos_z;
+
+	float vel_x;
+	float vel_y;
+	float vel_z;
+
+	float acc_x;
+	float acc_y;
+	float acc_z;
+
+	double time;
 
 public:
-  //! ROS node initialization
-  RobotDriver(ros::NodeHandle &nh)
-  {
-    nh_ = nh;
-    //set up the publisher for the cmd_vel topic
-    cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/vizzy/cmd_vel", 1);
-  }
 
-  //! Loop forever while sending drive commands based on keyboard input
-  bool driveKeyboard()
-  {
-    std::cout << "Type a command and then press enter.  "
-      "Use 'w' to move forward, 'a' to turn left, "
-      "'d' to turn right, 's' to brake.\n"
-      "'x' to move backward, '.' to exit.\n";
+	Positions(ros::NodeHandle &nh)
+	{
+			nh_ = nh;
+	}
 
-    //we will be sending commands of type "twist"
-    geometry_msgs::Twist base_cmd;
+	void callbackFunc(const ardrone_autonomy::Navdata robotInfo)
+	{
+		this->vel_x = robotInfo.vx;
+		this->vel_y = robotInfo.vy;
+		this->vel_z = robotInfo.vz;
 
-    char cmd[50];
-    while(nh_.ok()){
+		this->acc_x = robotInfo.ax;
+		this->acc_y = robotInfo.ay;
+		this->acc_z = robotInfo.az;
 
-      std::cin.getline(cmd, 50);
-      if(cmd[0]!='w' && cmd[0]!='a' && cmd[0]!='d' && cmd[0]!='s' && cmd[0]!='x' && cmd[0]!='.')
-      {
-        std::cout << "unknown command:" << cmd << "\n";
-        continue;
-      }
+		this->time = robotInfo.header.stamp.sec + robotInfo.header.stamp.nsec*1E-09;
+		//this->time = robotInfo.header.stamp.sec;
 
-      base_cmd.linear.x = base_cmd.linear.y = base_cmd.angular.z = 0;   
-      //move forward
-      if(cmd[0]=='w'){
-        base_cmd.linear.x = 0.50;
-      } 
-      //turn left (yaw) and drive forward at the same time
-      else if(cmd[0]=='a'){
-        base_cmd.angular.z = 0.75;
-        base_cmd.linear.x = 0.25;
-      } 
-      //turn right (yaw) and drive forward at the same time
-      else if(cmd[0]=='d'){
-        base_cmd.angular.z = -0.75;
-        base_cmd.linear.x = 0.25;
-      } 
-      //brake
-      else if(cmd[0]=='s'){
-        base_cmd.linear.x = 0.0;
-      }
-      //brake
-      else if(cmd[0]=='x'){
-        base_cmd.linear.x = -0.50;
-      } 
-      //quit
-      else if(cmd[0]=='.'){
-        break;
-      }
+		ROS_INFO("Velocity_x = [%f] || Time = [%f]", this->vel_x, this->time);
+	}
 
-      //publish the assembled command
-      cmd_vel_pub_.publish(base_cmd);
-    }
-    return true;
-  }
+	float posCalc()
+	{
+		float t_stop;
+		float t_go;
 
+		float t = 0;
+		float x0 = this->pos_x;
+		float y0 = this->pos_y;
+		float z0 = this->pos_z;
+
+		float v0x = this->vel_x;
+		float v0y = this->vel_y;
+		float v0z = this->vel_y;
+		
+		float ax = this->acc_x;
+		float ay = this->acc_y;
+		float az = this->acc_z;
+
+
+
+		
+		float x = x0 + v0x*t + 0.5*t*t*ax;
+		float y = y0 + v0y*t + 0.5*t*t*ay;
+		float z = z0 + v0z*t + 0.5*t*t*(az-g);
+
+		this->pos_x = x;
+		this->pos_y = y;
+		this->pos_z = z;
+
+	}
+
+	void listener()
+	{
+		navdata_sub = nh_.subscribe("/ardrone/navdata", 1, &Positions::callbackFunc, this);
+	}
 };
 
 int main(int argc, char** argv)
 {
-  //init the ROS node
-  ros::init(argc, argv, "robot_driver");
-  ros::NodeHandle nh;
-
-  RobotDriver driver(nh);
-  driver.driveKeyboard();
+	ros::init(argc, argv, "Positions");
+  	ros::NodeHandle nh;
+	
+	Positions teste(nh);
+	teste.listener();
+	teste.posCalc();
+	ros::spin();
+		
+	return 0;
 }
