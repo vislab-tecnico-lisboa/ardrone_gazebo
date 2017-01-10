@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!-- ROS launcher for the path_generatort  -->
+<launch>
+  <node pkg="file_recorder" name="file_recorder" type="file_recorder.py" output="screen" />
+</launch>
