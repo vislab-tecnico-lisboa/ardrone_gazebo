@@ -70,7 +70,20 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <gaussianNoise>0.0</gaussianNoise>
         <frameName>map</frameName>
       </plugin>
+    </gazebo>
 
+    <gazebo reference="base_link">
+      <sensor name="quadrotor_contact_sensor_sim" type="contact">
+        <always_on>true</always_on>
+        <update_rate>100.0</update_rate>
+        <contact>
+          <collision>base_link_collision</collision>
+        </contact>
+        <plugin name="quadrotor_bumper_sim" filename="libgazebo_ros_bumper.so">
+          <bumperTopicName>ardrone/bumper</bumperTopicName>
+          <frameName>base_link</frameName>
+        </plugin>
+      </sensor>
     </gazebo>
   </xacro:macro>
 </robot>
