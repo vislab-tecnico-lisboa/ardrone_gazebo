@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- ROS launcher for the path_generatort  -->
+<launch>
+  <!-- launch first aruco_test  -->
+  <include file="$(find aruco_test)/launch/aruco_test.launch" />
+
+  <node pkg="actor_critic_agent" name="actor_critic_agent" type="actor_critic_agent.py" output="screen" />
+</launch>
