@@ -2,6 +2,8 @@
 from __future__ import print_function, division
 
 import roslib
+import tf
+import random
 roslib.load_manifest('actor_critic_agent')
 import sys
 import rospy
@@ -46,6 +48,8 @@ class actor_critic:
     self.land_pub = rospy.Publisher('/ardrone/land', Empty, queue_size=10)
     
     rospy.loginfo("Publishers initialized")
+    
+    self.position_list = [[0, 0], [20, 0], [20, -20], [0, -20]]
 
   def callback_image(self,data):
     time_stamp = data.header.stamp.secs + \
@@ -72,24 +76,32 @@ class actor_critic:
         if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
             aruco_dist = self.aruco_limit
         aruco_dist = 1.0 - (aruco_dist / self.aruco_limit)
-        rospy.loginfo(str(aruco_dist))
+        rospy.logdebug(str(aruco_dist))
     
     if (self.bumper_msg != None  and \
        self.navdata_msg != None and \
        self.bumper_msg.states != [] and \
        self.navdata_msg.state == 3) or \
-       (aruco_dist > 0.9):
+       (aruco_dist > 0.8):
         model_state_msg = ModelState()
         empty_msg = Empty()
         
+        new_position = random.sample(self.position_list,  1)
+        
+        angle = random.random() * 2 * np.pi
+        
+        rospy.loginfo("New position: " + str(new_position) + \
+                      "New angle: " + str(angle))
+        
         model_state_msg.model_name = "quadrotor"
-        model_state_msg.pose.position.x = 0.0
-        model_state_msg.pose.position.y = 0.0
+        model_state_msg.pose.position.x = new_position[0][0]
+        model_state_msg.pose.position.y = new_position[0][1]
         model_state_msg.pose.position.z = 0.0
-        model_state_msg.pose.orientation.x = 0.0
-        model_state_msg.pose.orientation.y = 0.0
-        model_state_msg.pose.orientation.z = 0.0
-        model_state_msg.pose.orientation.w = 0.0
+        quaternion = tf.transformations.quaternion_from_euler(0, 0, angle)
+        model_state_msg.pose.orientation.x = quaternion[0]
+        model_state_msg.pose.orientation.y = quaternion[1]
+        model_state_msg.pose.orientation.z = quaternion[2]
+        model_state_msg.pose.orientation.w = quaternion[3]
         model_state_msg.reference_frame = "world"
 
         self.model_state_pub.publish(model_state_msg)
