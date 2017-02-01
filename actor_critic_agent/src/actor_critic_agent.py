@@ -29,7 +29,11 @@ class actor_critic:
     self.aruco_msg = None
     self.model_states_pose_msg = None    
     self.count = 0;
-    self.bridge = CvBridge() 
+    self.bridge = CvBridge()
+
+    actual_time = rospy.get_rostime()
+    self.start_time =  actual_time.secs + \
+                       actual_time.nsecs / 1000000000
     
     self.start_pos = Twist()
     self.start_pos.linear.x = 0.0
@@ -73,8 +77,50 @@ class actor_critic:
   def callback_image(self,data):
     if (self.navdata_msg != None and \
         self.navdata_msg.state == 3):  # The actor-critic system works only when the drone is flying
-        time_stamp = data.header.stamp.secs + \
-                     data.header.stamp.nsecs / 1000000000
+        # Calculating the punishment for colliding
+        is_colliding = False
+        collision_cost = 0.0
+        if self.bumper_msg != None  and \
+           self.bumper_msg.states != []:
+            is_colliding = True
+            collision_cost = -10.0
+        rospy.logdebug("Collisions punishment: " + str(collision_cost))
+            
+        # Calculating the time elapsed from the last respawn
+        actual_time = rospy.get_rostime()        
+        time_stamp = actual_time.secs + \
+                     actual_time.nsecs / 1000000000                    
+        time_elapsed = time_stamp - self.start_time
+        rospy.logdebug("Time elapsed: " + str(time_elapsed))
+        
+        # Calculating the aruco distance reward
+        aruco_dist = 0.0
+        aruco_cost = 0.0        
+        if self.aruco_msg != None:
+            aruco_dist = np.sqrt(self.aruco_msg.linear.x**2 + \
+                                 self.aruco_msg.linear.y**2 + \
+                                 self.aruco_msg.linear.z**2)
+            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
+                aruco_dist = self.aruco_limit
+            aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
+            rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
+            
+        # Calculating the traveled distance reward
+        trav_dist = 0.0
+        if self.model_states_pose_msg != None:
+          actual_pos = self.model_states_pose_msg.position
+          trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
+                              (actual_pos.y - self.start_pos.linear.y)**2)
+          trav_cost = trav_dist / time_elapsed
+        rospy.logdebug("Travel distance reward: " + str(trav_cost))
+        
+        # Calculating the step reward
+        step_reward = collision_cost + aruco_cost + trav_cost
+        rospy.loginfo("Step reward: " + str(step_reward))
+        
+        # Calculating the total reward
+        self.total_reward += step_reward
+        rospy.loginfo("total reward: " + str(self.total_reward))
         
         # Reading the camera image from the topic
         try:
@@ -84,32 +130,10 @@ class actor_critic:
         
         # Risizeing the image to 160x80 pixel for the convolutional network
         cv_image_resized = cv2.resize(cv_image, (160, 80))
-
-        # Calculating the aruco distance reward
-        aruco_dist = 0.0        
-        if self.aruco_msg != None:
-            aruco_dist = np.sqrt(self.aruco_msg.linear.x**2 + \
-                                 self.aruco_msg.linear.y**2 + \
-                                 self.aruco_msg.linear.z**2)
-            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
-                aruco_dist = self.aruco_limit
-            aruco_dist = 1.0 - (aruco_dist / self.aruco_limit)
-            rospy.logdebug("Aruco distance reward: " + str(aruco_dist))
-            
-        # Calculating the traveled distance reward
-        trav_dist = 0.0
-        if self.model_states_pose_msg != None:
-          actual_pos = self.model_states_pose_msg.position
-          trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
-                              (actual_pos.y - self.start_pos.linear.y)**2 + \
-                              (actual_pos.z - self.start_pos.linear.z)**2)
-        rospy.loginfo("Travel distance reward: " + str(trav_dist))
-        # IS MISSING THE CALCULATION OF TIME reward = trav_dist - time_elapsed
         
         # Starting a newe episode if the drone collide with something or if it's close enough to an aruco board
-        if (self.bumper_msg != None  and \
-            self.bumper_msg.states != []) or \
-            (aruco_dist > 0.8):
+        if is_colliding or \
+           (aruco_cost > 0.8):
             model_state_msg = ModelState()
             empty_msg = Empty()
             
@@ -144,6 +168,12 @@ class actor_critic:
             self.reset_pub.publish(empty_msg)
             rospy.sleep(0.5)
             self.takeoff_pub.publish(empty_msg)
+            
+            # Reseting the episode starting time
+            actual_time = rospy.get_rostime()
+            self.start_time =  actual_time.secs + \
+                               actual_time.nsecs / 1000000000
+            self.total_reward = 0.0
 
   def callback_imu(self,data):
     time_stamp = data.header.stamp.secs + \
