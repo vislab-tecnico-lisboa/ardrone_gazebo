@@ -2,7 +2,6 @@
 from __future__ import print_function, division
 
 import roslib
-import tf
 import random
 roslib.load_manifest('actor_critic_agent')
 import sys
@@ -17,13 +16,29 @@ from std_msgs.msg import Empty
 from cv_bridge import CvBridge, CvBridgeError
 import time
 import os
+import matplotlib.pyplot as plt
+
+from keras.models import Model
+from keras.preprocessing.image import img_to_array, load_img
+from autoencoder import autoencoder_network
+import tensorflow as tf
+from collections import deque
+
 
 class actor_critic:
 
   def __init__(self):     
     random.seed()
+    
+    self.queue = deque([])
+    
+    self.graph = tf.get_default_graph()    
+    
+    with self.graph.as_default():
+      self.autoencoder_network = autoencoder_network()
       
     self.aruco_limit = 4.0
+    self.imu_msg = np.zeros(37)
     self.bumper_msg = None
     self.navdata_msg = None
     self.aruco_msg = None
@@ -116,11 +131,11 @@ class actor_critic:
         
         # Calculating the step reward
         step_reward = collision_cost + aruco_cost + trav_cost
-        rospy.loginfo("Step reward: " + str(step_reward))
+        rospy.logdebug("Step reward: " + str(step_reward))
         
         # Calculating the total reward
         self.total_reward += step_reward
-        rospy.loginfo("total reward: " + str(self.total_reward))
+        rospy.logdebug("total reward: " + str(self.total_reward))
         
         # Reading the camera image from the topic
         try:
@@ -130,6 +145,34 @@ class actor_critic:
         
         # Risizeing the image to 160x80 pixel for the convolutional network
         cv_image_resized = cv2.resize(cv_image, (160, 80))
+        #array_image = np.asarray(cv_image_resized)
+        array_image = img_to_array(cv_image_resized)
+        input_image = np.zeros((1, 80, 160, 3))
+        input_image[0] = array_image
+        
+        # Calculation the image features
+        with self.graph.as_default():
+          image_features = self.autoencoder_network.run_network(input_image)
+          
+        # adding the features to the features list
+        if len(self.queue) == 0:
+            self.queue.append(image_features)
+            self.queue.append(image_features)
+            self.queue.append(image_features)
+        else:
+            self.queue.popleft()
+            self.queue.append(image_features)
+            
+        rospy.logdebug("Queue length: " + str(len(self.queue)))
+        rospy.logdebug("Image Features: " + str(image_features.shape))
+        rospy.logdebug("Imu length: " + str(len(self.imu_msg)))
+        
+        # Create the state vector
+        state = np.concatenate((self.queue[0].flatten(), 
+                                self.queue[1].flatten(),
+                                self.queue[2].flatten(),
+                                self.imu_msg))
+        rospy.logdebug("State shape: " + str(len(state)))
         
         # Starting a newe episode if the drone collide with something or if it's close enough to an aruco board
         if is_colliding or \
@@ -174,51 +217,35 @@ class actor_critic:
             self.start_time =  actual_time.secs + \
                                actual_time.nsecs / 1000000000
             self.total_reward = 0.0
+            # Reseting the image queue
+            self.queue = deque([])
 
   def callback_imu(self,data):
     time_stamp = data.header.stamp.secs + \
                  data.header.stamp.nsecs / 1000000000
                  
-    info = str(data.orientation.x) + " "  + \
-           str(data.orientation.y) + " "  + \
-           str(data.orientation.z) + " "  + \
-           str(data.orientation.w) + " "  + \
-           str(data.angular_velocity.x) + " "  + \
-           str(data.angular_velocity.y) + " "  + \
-           str(data.angular_velocity.z) + " "  + \
-           str(data.linear_acceleration.x) + " "  + \
-           str(data.linear_acceleration.y) + " "  + \
-           str(data.linear_acceleration.z) + " "  + \
-           str(data.orientation_covariance[0]) + " "  + \
-           str(data.orientation_covariance[1]) + " "  + \
-           str(data.orientation_covariance[2]) + " "  + \
-           str(data.orientation_covariance[3]) + " "  + \
-           str(data.orientation_covariance[4]) + " "  + \
-           str(data.orientation_covariance[5]) + " "  + \
-           str(data.orientation_covariance[6]) + " "  + \
-           str(data.orientation_covariance[7]) + " "  + \
-           str(data.orientation_covariance[8]) + " "  + \
-           str(data.angular_velocity_covariance[0]) + " "  + \
-           str(data.angular_velocity_covariance[1]) + " "  + \
-           str(data.angular_velocity_covariance[2]) + " "  + \
-           str(data.angular_velocity_covariance[3]) + " "  + \
-           str(data.angular_velocity_covariance[4]) + " "  + \
-           str(data.angular_velocity_covariance[5]) + " "  + \
-           str(data.angular_velocity_covariance[6]) + " "  + \
-           str(data.angular_velocity_covariance[7]) + " "  + \
-           str(data.angular_velocity_covariance[8]) + " "  + \
-           str(data.linear_acceleration_covariance[0]) + " "  + \
-           str(data.linear_acceleration_covariance[1]) + " "  + \
-           str(data.linear_acceleration_covariance[2]) + " "  + \
-           str(data.linear_acceleration_covariance[3]) + " "  + \
-           str(data.linear_acceleration_covariance[4]) + " "  + \
-           str(data.linear_acceleration_covariance[5]) + " "  + \
-           str(data.linear_acceleration_covariance[6]) + " "  + \
-           str(data.linear_acceleration_covariance[7]) + " "  + \
-           str(data.linear_acceleration_covariance[8]) + " "  + \
-           str(time_stamp) + "\n"
+    orientation = np.zeros(4)
+    orientation[0] = data.orientation.x
+    orientation[1] = data.orientation.y
+    orientation[2] = data.orientation.z
+    orientation[3] = data.orientation.w
     
-    rospy.logdebug(info)
+    angular_velocity = np.zeros(3)
+    angular_velocity[0] = data.angular_velocity.x
+    angular_velocity[1] = data.angular_velocity.y
+    angular_velocity[2] = data.angular_velocity.z
+    
+    linear_acceleration = np.zeros(3)
+    linear_acceleration[0] = data.linear_acceleration.x
+    linear_acceleration[1] = data.linear_acceleration.y
+    linear_acceleration[2] = data.linear_acceleration.z
+    
+    self.imu_msg = np.concatenate((orientation, 
+                                   angular_velocity,
+                                   linear_acceleration,
+                                   data.orientation_covariance,
+                                   data.angular_velocity_covariance,
+                                   data.linear_acceleration_covariance))
     
   def callback_bumper(self,data):                 
     self.bumper_msg = data
