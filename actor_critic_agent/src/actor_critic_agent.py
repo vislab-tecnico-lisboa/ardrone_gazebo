@@ -349,8 +349,8 @@ class actor_critic:
             # Reseting the image queue
             self.queue = deque([])
             # Reseting state, action and noise vectors
-            self.actions = np.zeros(self.action_dim)
-            self.action_noise = np.zeros(self.action_dim)
+            self.action = np.zeros((1, self.action_dim))
+            self.action_noise = np.zeros((1, self.action_dim))
             self.state = np.zeros(self.state_dim)
             
             # Saving the weights
