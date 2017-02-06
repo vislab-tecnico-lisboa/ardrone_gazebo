@@ -37,15 +37,20 @@ class actor_critic:
   def __init__(self):     
     random.seed()
     
-    # Set to 1 to activate training and to 0 to deactivate
-    self.train_indicator = 1
+    self.colliding_flag = False
+    
+    # Set to 1 to activate training and to 0 to deactivate (reading from a ros parameter)
+    self.train_indicator = rospy.get_param('~training')
+    
+    # Reading the networks' path from a ros parameter
+    self.networks_dir = rospy.get_param('~networks_dir')
     
     self.queue = deque([])
     
     self.graph = tf.get_default_graph()    
     
     self.state_dim = 637
-    self.action_dim = 4
+    self.action_dim = 3
     self.buffer_size = 100000
     self.batch_size = 32
     self.gamma = 0.99
@@ -63,7 +68,7 @@ class actor_critic:
     
     with self.graph.as_default():
       # Initialization of the autoencoder network
-      self.autoencoder_network = autoencoder_network()
+      self.autoencoder_network = autoencoder_network(self.networks_dir)
       #Tensorflow GPU optimization
       config = tf.ConfigProto()
       config.gpu_options.allow_growth = True
@@ -73,12 +78,12 @@ class actor_critic:
       self.actor = ActorNetwork(sess, self.state_dim, self.action_dim, self.batch_size, self.tau, self.lra)
       self.critic = CriticNetwork(sess, self.state_dim, self.action_dim, self.batch_size, self.tau, self.lrc)    
       #Now load the weight
-      print("Now we load the weight")
+      rospy.loginfo("Now we load the weight")
       try:
-          self.actor.model.load_weights("actormodel.h5")
-          self.critic.model.load_weights("criticmodel.h5")
-          self.actor.target_model.load_weights("actormodel.h5")
-          self.critic.target_model.load_weights("criticmodel.h5")
+          self.actor.model.load_weights(self.networks_dir + "actormodel.h5")
+          self.critic.model.load_weights(self.networks_dir + "criticmodel.h5")
+          self.actor.target_model.load_weights(self.networks_dir + "actormodel.h5")
+          self.critic.target_model.load_weights(self.networks_dir + "criticmodel.h5")
           rospy.loginfo("Weight load successfully")
       except:
           rospy.logwarn("Cannot find the weight")
@@ -144,15 +149,14 @@ class actor_critic:
     if (self.navdata_msg != None and \
         self.navdata_msg.state == 3):  # The actor-critic system works only when the drone is flying
         
-        rospy.loginfo("Episode : " + str(self.count) + " Replay Buffer " + str(self.buff.count())) 
+        rospy.logdebug("Episode : " + str(self.count) + " Replay Buffer " + str(self.buff.count())) 
         
         loss = 0
         
         # Calculating the punishment for colliding
         is_colliding = False
         collision_cost = 0.0
-        if self.bumper_msg != None  and \
-           self.bumper_msg.states != []:
+        if self.colliding_flag:
             is_colliding = True
             collision_cost = -10.0
         rospy.logdebug("Collisions punishment: " + str(collision_cost))
@@ -176,17 +180,25 @@ class actor_critic:
             aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
             rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
             
-        # Calculating the traveled distance reward
+        # Calculating the traveled distance reward and the altitude punishment
         trav_dist = 0.0
+        alt_cost = 0.0
         if self.model_states_pose_msg != None:
           actual_pos = self.model_states_pose_msg.position
           trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
                               (actual_pos.y - self.start_pos.linear.y)**2)
           trav_cost = trav_dist / time_elapsed
+          alt_cost = -abs(1 - actual_pos.z)
         rospy.logdebug("Travel distance reward: " + str(trav_cost))
+    
+        # Calculating the angular velocity punishment
+        angular_cost = 0
+        if self.imu_msg != None:
+            angular_cost = -abs(self.imu_msg[6])
+        rospy.loginfo("Angular punishment: " + str(angular_cost))
         
         # Calculating the step reward
-        step_reward = collision_cost + aruco_cost + trav_cost
+        step_reward = collision_cost + aruco_cost + trav_cost + angular_cost + alt_cost
         rospy.logdebug("Step reward: " + str(step_reward))
         
         # Calculating the total reward
@@ -243,25 +255,45 @@ class actor_critic:
         with self.graph.as_default():
           a_t_original = self.actor.model.predict(new_state.reshape(1, new_state.shape[0]))
         self.action_noise[0][0] = self.train_indicator * max(self.epsilon, 0) * \
-                               self.ou.function(a_t_original[0][0],  0.0, 1.0, 0.2)
+                               self.ou.function(a_t_original[0][0],  0.3, 0.5, 0.1)
         self.action_noise[0][1] = self.train_indicator * max(self.epsilon, 0) * \
-                               self.ou.function(a_t_original[0][1],  0.0, 1.0, 0.2)
+                               self.ou.function(a_t_original[0][1],  0.0, 0.5, 0.1)
         self.action_noise[0][2] = self.train_indicator * max(self.epsilon, 0) * \
-                               self.ou.function(a_t_original[0][2], 0.0, 1.0, 0.2)
-        self.action_noise[0][3] = self.train_indicator * max(self.epsilon, 0) * \
-                               self.ou.function(a_t_original[0][3], 0.0, 1.0, 0.2)
+                               self.ou.function(a_t_original[0][2], 0.0, 0.5, 0.1)
 
         self.action[0][0] = a_t_original[0][0] + self.action_noise[0][0]
         self.action[0][1] = a_t_original[0][1] + self.action_noise[0][1]
         self.action[0][2] = a_t_original[0][2] + self.action_noise[0][2]
-        self.action[0][3] = a_t_original[0][3] + self.action_noise[0][3]
+#        with self.graph.as_default():
+#          a_t_original = self.actor.model.predict(new_state.reshape(1, new_state.shape[0]))
+#        self.action_noise[0][0] = self.train_indicator * max(self.epsilon, 0) * \
+#                               self.ou.function(a_t_original[0][0],  0.3, 0.6, 0.1)
+#        self.action_noise[0][1] = self.train_indicator * max(self.epsilon, 0) * \
+#                               self.ou.function(a_t_original[0][1],  0.0, 0.5, 0.1)
+#        self.action_noise[0][2] = self.train_indicator * max(self.epsilon, 0) * \
+#                               self.ou.function(a_t_original[0][2], 0.0, 0.9, 0.1)
+#        self.action_noise[0][3] = self.train_indicator * max(self.epsilon, 0) * \
+#                               self.ou.function(a_t_original[0][3], 0.0, 0.5, 0.1)
+#
+#        self.action[0][0] = a_t_original[0][0] + self.action_noise[0][0]
+#        self.action[0][1] = a_t_original[0][1] + self.action_noise[0][1]
+#        self.action[0][2] = a_t_original[0][2] + self.action_noise[0][2]
+#        self.action[0][3] = a_t_original[0][3] + self.action_noise[0][3]
+        
+        rospy.loginfo("motor comand plus noise: " + str( self.action[0][2]) + \
+                      " original motor command: " + str(a_t_original[0][2]) + \
+                      " noise: " + str(self.action_noise[0][2]))
 
         # Perform an action
         cmd_input = Twist()
+#        cmd_input.linear.x = self.action[0][0]
+#        cmd_input.linear.y = self.action[0][1]
+#        cmd_input.linear.z = self.action[0][2]
+#        cmd_input.angular.z = self.action[0][3]
         cmd_input.linear.x = self.action[0][0]
-        cmd_input.linear.y = self.action[0][1]
-        cmd_input.linear.z = self.action[0][2]
-        cmd_input.angular.z = self.action[0][3]
+        cmd_input.linear.y = 0.0
+        cmd_input.linear.z = self.action[0][1]
+        cmd_input.angular.z = self.action[0][2]
         self.cmd_vel_pub.publish(cmd_input)
         
         # Updating the state
@@ -296,11 +328,11 @@ class actor_critic:
                 self.actor.target_train()
                 self.critic.target_train()
                 
-        rospy.loginfo("Episode: " + str(self.count) + \
-                      "Step: " + str(self.step) + \
-                      "Action: " + str(self.action) + \
-                      "Reward: " + str(step_reward) + \
-                      "Loss: " + str(loss))
+        rospy.logdebug("Episode: " + str(self.count) + \
+                      " Step: " + str(self.step) + \
+                      " Action: " + str(self.action) + \
+                      " Reward: " + str(step_reward) + \
+                      " Loss: " + str(loss))
                 
         self.step +=1
         
@@ -334,13 +366,6 @@ class actor_critic:
             self.start_pos.linear.x = new_position[0][0]
             self.start_pos.linear.y = new_position[0][1]
             self.start_pos.linear.z = 0.0
-    
-            # Reinitializing position, orientation and status of the drone
-            self.land_pub.publish(empty_msg)
-            self.model_state_pub.publish(model_state_msg)
-            self.reset_pub.publish(empty_msg)
-            rospy.sleep(0.5)
-            self.takeoff_pub.publish(empty_msg)
             
             # Reseting the episode starting time
             actual_time = rospy.get_rostime()
@@ -357,12 +382,12 @@ class actor_critic:
             with self.graph.as_default():
                 if (self.train_indicator):
                     rospy.loginfo("Saving the weights")
-                    self.actor.model.save_weights("actormodel.h5", overwrite=True)
-                    with open("actormodel.json", "w") as outfile:
+                    self.actor.model.save_weights(self.networks_dir + "actormodel.h5", overwrite=True)
+                    with open(self.networks_dir + "actormodel.json", "w") as outfile:
                         json.dump(self.actor.model.to_json(), outfile)
     
-                    self.critic.model.save_weights("criticmodel.h5", overwrite=True)
-                    with open("criticmodel.json", "w") as outfile:
+                    self.critic.model.save_weights(self.networks_dir + "criticmodel.h5", overwrite=True)
+                    with open(self.networks_dir + "criticmodel.json", "w") as outfile:
                         json.dump(self.critic.model.to_json(), outfile)
 
             rospy.loginfo("TOTAL REWARD @ " + str(self.count) +"-th Episode  : Reward " + str(self.total_reward))
@@ -370,6 +395,22 @@ class actor_critic:
             self.total_reward = 0.0
             self.count += 1
             self.step = 0
+    
+             # reset the actions
+            cmd_input.linear.x = 0.0
+            cmd_input.linear.y = 0.0
+            cmd_input.linear.z = 0.0
+            cmd_input.angular.z = 0.0
+            self.cmd_vel_pub.publish(cmd_input)
+         
+            # Reinitializing position, orientation and status of the drone
+            self.land_pub.publish(empty_msg)
+            self.model_state_pub.publish(model_state_msg)
+            self.reset_pub.publish(empty_msg)
+            rospy.sleep(0.5)
+            self.takeoff_pub.publish(empty_msg)
+            rospy.sleep(0.5)
+            self.colliding_flag = False
             
 
   def callback_imu(self,data):
@@ -388,9 +429,10 @@ class actor_critic:
     angular_velocity[2] = data.angular_velocity.z
     
     linear_acceleration = np.zeros(3)
-    linear_acceleration[0] = data.linear_acceleration.x
-    linear_acceleration[1] = data.linear_acceleration.y
-    linear_acceleration[2] = data.linear_acceleration.z
+    linear_acceleration[0] = data.linear_acceleration.x / 10
+    linear_acceleration[1] = data.linear_acceleration.y / 10
+    # Normalizing the compensation for the gravity in z
+    linear_acceleration[2] = data.linear_acceleration.z / 10 
     
     self.imu_msg = np.concatenate((orientation, 
                                    angular_velocity,
@@ -401,6 +443,8 @@ class actor_critic:
     
   def callback_bumper(self,data):                 
     self.bumper_msg = data
+    if self.bumper_msg.states != []:
+        self.colliding_flag = True
     
   def callback_navdata(self,data): 
     # 0: Unknown, 1: Init, 2: Landed, 3: Flying, 4: Hovering, 5: Test

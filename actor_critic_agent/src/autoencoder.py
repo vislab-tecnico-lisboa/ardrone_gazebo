@@ -1,22 +1,25 @@
 from keras.layers import Input, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.models import Model, model_from_json
 import os
+import rospy
 
 class autoencoder_network(object):
-    def __init__(self):
+    def __init__(self, network_dir):
         self.autoencoder = None
         self.encoder = None
         
-        self.create_load_network()
+        self.net_dir = network_dir
+        
+        self.create_load_network(self.net_dir)
         
     def run_network(self, input_image):
         features = self.encoder.predict(input_image)
         return features
 
-    def create_load_network(self):
+    def create_load_network(self, network_dir):
         # load json and create model
-        if os.path.isfile("autoencoder.json"):
-          json_file = open('autoencoder.json', 'r')
+        if os.path.isfile(network_dir + "autoencoder.json"):
+          json_file = open(network_dir + "autoencoder.json", 'r')
           autoencoder_json = json_file.read()
           json_file.close()
           self.autoencoder = model_from_json(autoencoder_json)
@@ -45,9 +48,9 @@ class autoencoder_network(object):
           # this model maps an input to its reconstruction
           self.autoencoder = Model(input_img, decoded)
         
-        if os.path.isfile("autoencoder.h5"):
-            self.autoencoder.load_weights("autoencoder.h5", by_name=True)
-            print("Loaded model from disk")
+        if os.path.isfile(network_dir + "autoencoder.h5"):
+            self.autoencoder.load_weights(network_dir + "autoencoder.h5", by_name=True)
+            rospy.loginfo("Loaded autoencoder model from disk")
         
         layer_name = "max_pool_4"
         self.encoder = Model(input=self.autoencoder.input,

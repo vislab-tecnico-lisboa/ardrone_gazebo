@@ -4,5 +4,8 @@
   <!-- launch first aruco_test  -->
   <include file="$(find aruco_test)/launch/aruco_test.launch" />
 
-  <node pkg="actor_critic_agent" name="actor_critic_agent" type="actor_critic_agent.py" output="screen" />
+  <node pkg="actor_critic_agent" name="actor_critic_agent" type="actor_critic_agent.py" output="screen">
+    <param name="training" type="int" value="1" />
+    <param name="networks_dir" type="str" value="$(find actor_critic_agent)/networks/" />
+  </node>
 </launch>
