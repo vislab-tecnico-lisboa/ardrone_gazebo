@@ -20,6 +20,7 @@ import os
 from collections import deque
 from tf.transformations import quaternion_from_euler
 import json
+from numpy import inf
 
 from keras.models import Model
 from keras.preprocessing.image import img_to_array, load_img
@@ -175,11 +176,16 @@ class actor_critic:
         rospy.logdebug("Episode : " + str(self.count) + " Replay Buffer " + str(self.buff.count())) 
         
         loss = 0
+
+        # Rmoving inf from laser ranges
+        if self.laser_msg != None:
+          laser_ranges = np.asarray(self.laser_msg.ranges)
+          laser_ranges[laser_ranges == inf] = 0
         
         # Calculating laser punishment
         laser_cost = 0.0
         if self.laser_msg != None:
-          inverted_ranges = 1 - (np.asarray(self.laser_msg.ranges) / self.laser_msg.range_max)
+          inverted_ranges = 1 - (laser_ranges / self.laser_msg.range_max)
           gaussian_ranges = np.multiply(inverted_ranges, signal.gaussian(self.feature_dim, (self.feature_dim / 2 * 0.8)))
           laser_cost = -np.sum(gaussian_ranges) / self.feature_dim
         rospy.loginfo("Laser range punishment: " + str(laser_cost))
@@ -262,7 +268,7 @@ class actor_critic:
         elif self.laser_msg != None:
           rospy.logwarn(self.input_mode + " LASER")
           # Reading laser data as state features
-          image_features = np.asarray(self.laser_msg.ranges) / self.laser_msg.range_max 
+          image_features = laser_ranges / self.laser_msg.range_max 
           
         # Adding the features to the features list
         if len(self.queue) == 0:
