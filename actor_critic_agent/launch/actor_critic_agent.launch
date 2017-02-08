@@ -1,11 +1,19 @@
 <?xml version="1.0"?>
 <!-- ROS launcher for the path_generatort  -->
 <launch>
+ 
+  <arg name="training" default="1" />
+  <arg name="networks_dir" default="$(find actor_critic_agent)/networks/" />
+  <arg name="input" default="camera" />
+  <arg name="imu_input" default="0" />
+  
   <!-- launch first aruco_test  -->
   <include file="$(find aruco_test)/launch/aruco_test.launch" />
 
   <node pkg="actor_critic_agent" name="actor_critic_agent" type="actor_critic_agent.py" output="screen">
-    <param name="training" type="int" value="1" />
-    <param name="networks_dir" type="str" value="$(find actor_critic_agent)/networks/" />
+    <param name="training" type="int" value="$(arg training)" />
+    <param name="networks_dir" type="str" value="$(arg networks_dir)" />
+    <param name="input" type="str" value="$(arg input)" />
+    <param name="imu_input" type="int" value="$(arg imu_input)" />
   </node>
 </launch>

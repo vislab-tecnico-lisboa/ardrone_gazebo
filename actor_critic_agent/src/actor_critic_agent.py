@@ -7,8 +7,9 @@ roslib.load_manifest('actor_critic_agent')
 import sys
 import rospy
 import numpy as np
+from scipy import signal
 import cv2
-from sensor_msgs.msg import Image, Imu
+from sensor_msgs.msg import Image, Imu, LaserScan
 from geometry_msgs.msg import Twist
 from gazebo_msgs.msg import ModelState, ModelStates, ContactsState
 from ardrone_autonomy.msg import Navdata
@@ -45,11 +46,29 @@ class actor_critic:
     # Reading the networks' path from a ros parameter
     self.networks_dir = rospy.get_param('~networks_dir')
     
+    # Reading the input modality from a ros parameter (laser or camera)
+    self.input_mode = rospy.get_param('~input')
+    
+    # Set to 1 to activate imu inputs and to 0 to deactivate (reading from a ros parameter)
+    self.imu_input_mod = rospy.get_param('~imu_input')
+    
     self.queue = deque([])
     
     self.graph = tf.get_default_graph()    
     
-    self.state_dim = 637
+    if self.imu_input_mod == 1:
+      self.imu_dim = 37
+    else:
+      self.imu_dim = 0
+    if self.input_mode == "laser":
+      self.feature_dim = 9
+      self.aruco_dim = 3
+      self.altitude_dim = 1
+    else:
+      self.feature_dim = 200
+      self.aruco_dim = 0
+      self.altitude_dim = 0
+    self.state_dim = (3 * self.feature_dim) + self.imu_dim + self.aruco_dim + self.altitude_dim
     self.action_dim = 3
     self.buffer_size = 100000
     self.batch_size = 32
@@ -92,10 +111,12 @@ class actor_critic:
     self.buff = ReplayBuffer(self.buffer_size)
       
     self.aruco_limit = 4.0
-    self.imu_msg = np.zeros(37)
+    self.altitude_limit = 2.0
+    self.imu_msg = np.zeros(self.imu_dim)
     self.bumper_msg = None
     self.navdata_msg = None
     self.aruco_msg = None
+    self.laser_msg = None
     self.model_states_pose_msg = None    
     self.count = 0
     self.step = 0
@@ -127,6 +148,8 @@ class actor_critic:
                                        Twist, self.callback_aruco)
     self.model_states_sub = rospy.Subscriber("/gazebo/model_states",
                                              ModelStates, self.callback_model_states)
+    self.laser_sub = rospy.Subscriber("/ardrone/laser",
+                                      LaserScan, self.callback_laser)
                                       
     rospy.loginfo("Subscribers initialized")
     
@@ -152,6 +175,14 @@ class actor_critic:
         rospy.logdebug("Episode : " + str(self.count) + " Replay Buffer " + str(self.buff.count())) 
         
         loss = 0
+        
+        # Calculating laser punishment
+        laser_cost = 0.0
+        if self.laser_msg != None:
+          inverted_ranges = 1 - (np.asarray(self.laser_msg.ranges) / self.laser_msg.range_max)
+          gaussian_ranges = np.multiply(inverted_ranges, signal.gaussian(self.feature_dim, (self.feature_dim / 2 * 0.8)))
+          laser_cost = -np.sum(gaussian_ranges) / self.feature_dim
+        rospy.loginfo("Laser range punishment: " + str(laser_cost))
         
         # Calculating the punishment for colliding
         is_colliding = False
@@ -198,30 +229,40 @@ class actor_critic:
         rospy.loginfo("Angular punishment: " + str(angular_cost))
         
         # Calculating the step reward
-        step_reward = collision_cost + aruco_cost + trav_cost + angular_cost + alt_cost
+        step_reward = collision_cost + \
+                      (10 * aruco_cost) + \
+                      trav_cost + alt_cost \
+                      + laser_cost #+ angular_cost
         rospy.logdebug("Step reward: " + str(step_reward))
         
         # Calculating the total reward
         self.total_reward += step_reward
         rospy.logdebug("Total reward: " + str(self.total_reward))
         
-        # Reading the camera image from the topic
-        try:
-          cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as err:
-          rospy.logerror(err)
-        
-        # Risizeing the image to 160x80 pixel for the convolutional network
-        cv_image_resized = cv2.resize(cv_image, (160, 80))
-        #array_image = np.asarray(cv_image_resized)
-        array_image = img_to_array(cv_image_resized)
-        input_image = np.zeros((1, 80, 160, 3))
-        input_image[0] = array_image
-        input_image /= 255.0
-        
-        # Calculating image features
-        with self.graph.as_default():
-          image_features = self.autoencoder_network.run_network(input_image)
+        image_features = np.zeros(self.feature_dim)
+        if self.input_mode == "camera":
+          rospy.logwarn(self.input_mode + " CAMERA")
+          # Reading the camera image from the topic
+          try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+          except CvBridgeError as err:
+            rospy.logerror(err)
+          
+          # Risizeing the image to 160x80 pixel for the convolutional network
+          cv_image_resized = cv2.resize(cv_image, (160, 80))
+          #array_image = np.asarray(cv_image_resized)
+          array_image = img_to_array(cv_image_resized)
+          input_image = np.zeros((1, 80, 160, 3))
+          input_image[0] = array_image
+          input_image /= 255.0
+          
+          # Calculating image features
+          with self.graph.as_default():
+            image_features = self.autoencoder_network.run_network(input_image)
+        elif self.laser_msg != None:
+          rospy.logwarn(self.input_mode + " LASER")
+          # Reading laser data as state features
+          image_features = np.asarray(self.laser_msg.ranges) / self.laser_msg.range_max 
           
         # Adding the features to the features list
         if len(self.queue) == 0:
@@ -239,9 +280,44 @@ class actor_critic:
         # Create the state vector
         new_state = np.concatenate((self.queue[0].flatten(), 
                                     self.queue[1].flatten(),
-                                    self.queue[2].flatten(),
-                                    self.imu_msg))
+                                    self.queue[2].flatten()))
+        if self.imu_input_mod == 1:
+          new_state = np.concatenate((new_state,
+                                      self.imu_msg))
+        if self.input_mode == "laser":
+          # Creating aruco features
+          aruco_features = np.zeros(self.aruco_dim)
+          if self.aruco_msg != None:
+              if self.aruco_msg.linear.x == 0 or self.aruco_msg.linear.x > self.aruco_limit:
+                  aruco_features[0] = 1.0
+              else:
+                  aruco_features[0] = self.aruco_msg.linear.x / self.aruco_limit
+              if self.aruco_msg.linear.y == 0 or self.aruco_msg.linear.y > self.aruco_limit:
+                  aruco_features[1] = 1.0
+              else:
+                  aruco_features[1] = self.aruco_msg.linear.y / self.aruco_limit
+              if self.aruco_msg.linear.z == 0 or self.aruco_msg.linear.y > self.aruco_limit:
+                  aruco_features[2] = 1.0
+              else:
+                  aruco_features[2] = self.aruco_msg.linear.z / self.aruco_limit
+              #aruco_features[3] = self.aruco_msg.angular.x / np.pi
+              #aruco_features[4] = self.aruco_msg.angular.y / np.pi
+              #aruco_features[5] = self.aruco_msg.angular.z / np.pi
+            
+          # Creating altitude feature         
+          altitude_feature = np.zeros(1)        
+          if self.model_states_pose_msg != None:
+            altitude_value = self.model_states_pose_msg.position.z
+            if altitude_value > self.altitude_limit:
+                altitude_feature[0] = 1.0
+            else:
+                altitude_feature[0] = altitude_value / self.altitude_limit
+          new_state = new_state = np.concatenate((new_state,
+                                                  aruco_features,
+                                                  altitude_feature))
+        
         rospy.logdebug("State length: " + str(len(new_state)))
+        rospy.loginfo("State: " + str(new_state))
         
         # Add replay buffer
         done = False
@@ -251,7 +327,6 @@ class actor_critic:
         self.buff.add(self.state, self.action[0], step_reward, new_state, done)
         
         # Calculating new action
-        # Calculating image features
         with self.graph.as_default():
           a_t_original = self.actor.model.predict(new_state.reshape(1, new_state.shape[0]))
         self.action_noise[0][0] = self.train_indicator * max(self.epsilon, 0) * \
@@ -293,6 +368,9 @@ class actor_critic:
         cmd_input.linear.x = self.action[0][0]
         cmd_input.linear.y = 0.0
         cmd_input.linear.z = self.action[0][1]
+        # CAMBIO TEST MOMENTANEOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+#        if abs(a_t_original[0][2]) > 0.7:
+#            self.action[0][2] = 0.0
         cmd_input.angular.z = self.action[0][2]
         self.cmd_vel_pub.publish(cmd_input)
         
@@ -454,6 +532,9 @@ class actor_critic:
     
   def callback_aruco(self,data):                 
     self.aruco_msg = data
+    
+  def callback_laser(self,data):                 
+    self.laser_msg = data
     
   def callback_model_states(self,data):
     is_there = -1
