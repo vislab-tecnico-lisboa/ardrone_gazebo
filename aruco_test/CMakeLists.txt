@@ -124,7 +124,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  /home/nigno/Robot/aruco-2.0.10/src
+  $ENV{ARUCO_LIB_PATH}/src
 )
 
 ## Declare a C++ library
@@ -145,7 +145,7 @@ add_executable(aruco_test src/aruco_test.cpp)
 add_dependencies(aruco_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-FIND_LIBRARY(ARUCO_LIBRARY aruco /home/nigno/Robot/aruco-2.0.10/build)
+FIND_LIBRARY(ARUCO_LIBRARY aruco $ENV{ARUCO_LIB_PATH}/build)
 target_link_libraries(
   aruco_test
   ${catkin_LIBRARIES}
