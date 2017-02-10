@@ -38,6 +38,11 @@ If you are using ros indigo install gazebo5, 6 or 7 from the osrfoundation repos
 In order to install the aruco lib follow the instructions of the readme in the official repository:
 https://sourceforge.net/projects/aruco/files/2.0.10/
 
+Now add an environment variable with the path to your aruco library directory. To do so export the ARUCO_LIB_PATH inside your .bashrc:
+
+    $ echo "export ARUCO_LIB_PATH=<your_aruco_lib_directory>" >> ~/.bashrc
+    $ source ~/.bashrc
+
 ### 5 - Create a catkin workspace
 If you don't have it already, create a catkin workspace folder (for more informations look at this link: http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment):
 
