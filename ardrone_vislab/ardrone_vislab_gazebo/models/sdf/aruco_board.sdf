@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+    <model name="aruco_board">
+      <pose>0 0 0  0 0 0</pose>
+      <static>true</static>
+      <link name="body">
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>model://models/aruco_board/aruco_board.dae</uri></mesh>
+          </geometry>
+          <material>
+            <script>
+              <name>__default__</name>
+            </script>
+          </material>
+          <cast_shadows>0</cast_shadows>
+        </visual>
+      </link>
+      <static>1</static>
+    </model>
+</sdf>

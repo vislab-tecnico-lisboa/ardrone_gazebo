@@ -85,7 +85,7 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     velocity_topic_ = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("navdataTopic"))
-    navdata_topic_ = "/ardrone/navdata";
+    navdata_topic_ = "ardrone/navdata";
   else
     //navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
     navdata_topic_ = _sdf->GetElement("navdataTopic")->Get<std::string>();

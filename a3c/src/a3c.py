@@ -10,8 +10,9 @@ import numpy as np
 from scipy import signal
 import cv2
 from sensor_msgs.msg import Image, Imu, LaserScan
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Pose
 from gazebo_msgs.msg import ModelState, ModelStates, ContactsState
+from gazebo_msgs.srv import SpawnModel
 from ardrone_autonomy.msg import Navdata
 from std_msgs.msg import Empty
 from cv_bridge import CvBridge, CvBridgeError
@@ -134,7 +135,7 @@ class actor_critic:
     
     self.total_reward = 0.0
     
-    self.position_list = [[0, 0], [20, 0], [20, -20], [0, -20]]
+    self.position_list = [[0, 0], [20, 0], [20, -20], [0, -20], [0, -7], [7, -7]]
     
     # Subscribers initialization
     self.image_sub = rospy.Subscriber("/ardrone/front/image_raw",
@@ -556,12 +557,84 @@ class actor_critic:
 def main(args):
   #cv2.startWindowThread()
   #cv2.namedWindow("Image window")
-  rospy.init_node('optical_flow', anonymous=True, log_level=rospy.INFO)
+  rospy.init_node('a3c', anonymous=True, log_level=rospy.INFO)
   
-  ac = actor_critic()
+  #ac = actor_critic()
   time.sleep(1)
   
   rospy.loginfo("<------Data recorder (Author: Nino Cauli)------>")
+  
+  # Generating a random orientation
+  random.seed()
+  world_step = 30
+  position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
+                   [7, -7], [20, -17], [12, -10], [20, -13], [16, -17], 
+                   [16, -3], [2, -3], [2, -17]]
+  map_pos = [9, -10]
+  aruco_pos_list = [[-4.5, 0, 1.0, 0, 1.57, 0], 
+                    [8.60, -10.0, 1.0, 0, 1.57, 0],
+                    [23.0, 0, 1.0, 0, 1.57, 3.14],
+                    [-4.5, -20, 1.0, 0, 1.57, 0]]
+  robot_description = rospy.get_param('~robot_description')
+  map_path = rospy.get_param('~world_name')
+  aruco_path = rospy.get_param('~aruco_name')
+  f = open(map_path,'r')
+  map_description = f.read()
+  f.close()
+  f = open(aruco_path,'r')
+  aruco_description = f.read()
+  f.close()
+  rospy.wait_for_service('gazebo/spawn_urdf_model')
+  rospy.wait_for_service('gazebo/spawn_sdf_model')
+  spawn_model_prox = rospy.ServiceProxy('gazebo/spawn_urdf_model', SpawnModel)
+  spawn_model_sdf_prox = rospy.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
+  
+  num_drone = 0
+  for start_pos in position_list:  
+      num_drone += 1
+      
+      quadrotor_name = "quadrotor_" + str(num_drone)
+      name_space = "number_" + str(num_drone)
+      map_name = "map_" + str(num_drone)
+      
+      initial_pose = Pose()
+      initial_pose.position.x = map_pos[0]
+      initial_pose.position.y = map_pos[1] + (world_step * (num_drone - 1))
+      initial_pose.position.z = 0.0
+      
+      spawn_model_sdf_prox(map_name, map_description, name_space, initial_pose, "world")    
+      
+      num_aruco_board = 0      
+      for aruco_boards_pos in aruco_pos_list:
+          num_aruco_board += 1
+          
+          aruco_name = "aruco_" + str(num_drone) + "_" + str(num_aruco_board)
+          initial_pose = Pose()
+          initial_pose.position.x = aruco_boards_pos[0]
+          initial_pose.position.y = aruco_boards_pos[1] + (world_step * (num_drone - 1))
+          initial_pose.position.z = aruco_boards_pos[2]
+          quaternion = quaternion_from_euler(aruco_boards_pos[3], 
+                                             aruco_boards_pos[4], 
+                                             aruco_boards_pos[5])
+          initial_pose.orientation.x = quaternion[0]
+          initial_pose.orientation.y = quaternion[1]
+          initial_pose.orientation.z = quaternion[2]
+          initial_pose.orientation.w = quaternion[3]
+          
+          spawn_model_sdf_prox(aruco_name, aruco_description, name_space, initial_pose, "world")
+      
+      initial_pose = Pose()
+      initial_pose.position.x = start_pos[0]
+      initial_pose.position.y = start_pos[1] + (world_step * (num_drone - 1))
+      initial_pose.position.z = 0.5
+      angle = random.random() * 2 * np.pi
+      quaternion = quaternion_from_euler(0, 0, angle)
+      initial_pose.orientation.x = quaternion[0]
+      initial_pose.orientation.y = quaternion[1]
+      initial_pose.orientation.z = quaternion[2]
+      initial_pose.orientation.w = quaternion[3]
+  
+      spawn_model_prox(quadrotor_name, robot_description, name_space, initial_pose, "world")
   
   try:
     rospy.spin()

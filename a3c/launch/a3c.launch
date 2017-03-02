@@ -15,5 +15,8 @@
     <param name="networks_dir" type="str" value="$(arg networks_dir)" />
     <param name="input" type="str" value="$(arg input)" />
     <param name="imu_input" type="int" value="$(arg imu_input)" />
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find ardrone_vislab_description)/urdf/quadrotor_sensors.urdf.xacro'" />
+    <param name="world_name" type="str" value="$(find ardrone_vislab_gazebo)/models/sdf/isr_7th_floor_a3c.sdf" />
+    <param name="aruco_name" type="str" value="$(find ardrone_vislab_gazebo)/models/sdf/aruco_board.sdf" /> 
   </node>
 </launch>
