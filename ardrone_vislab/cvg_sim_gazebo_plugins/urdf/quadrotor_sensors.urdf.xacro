@@ -28,6 +28,13 @@ xmlns:xacro="http://ros.org/wiki/xacro"
         <headingDrift>0.0</headingDrift>
         <headingGaussianNoise>0.00</headingGaussianNoise>
       </plugin>
+      
+      <plugin name="aruco_plugin" filename="libaruco_plugin.so">
+        <alwaysOn>true</alwaysOn>
+        <topicName>ardrone/aruco/pose</topicName>
+	<arucoMapFile>$(find cvg_sim_gazebo_plugins)/media/map.yml</arucoMapFile>
+	<arucoFrontCameraFile>$(find cvg_sim_gazebo_plugins)/media/front_camera.yml</arucoFrontCameraFile>
+      </plugin>
 
       <plugin name="quadrotor_baro_sim" filename="libhector_gazebo_ros_baro.so">
         <alwaysOn>true</alwaysOn>

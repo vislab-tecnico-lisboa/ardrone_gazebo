@@ -34,6 +34,13 @@ from ActorNetwork import ActorNetwork
 from CriticNetwork import CriticNetwork
 from OU import OU
 
+from worker import Worker
+from ac_network import AC_Network
+
+import threading
+import multiprocessing
+
+
 
 class actor_critic:
 
@@ -178,7 +185,7 @@ class actor_critic:
         
         loss = 0
 
-        # Rmoving inf from laser ranges
+        # Removing inf from laser ranges
         if self.laser_msg != None:
           laser_ranges = np.asarray(self.laser_msg.ranges)
           laser_ranges[laser_ranges == inf] = 0
@@ -562,79 +569,127 @@ def main(args):
   #ac = actor_critic()
   time.sleep(1)
   
-  rospy.loginfo("<------Data recorder (Author: Nino Cauli)------>")
+  rospy.loginfo("<------A3C (Author: Nino Cauli)------>")
   
-  # Generating a random orientation
-  random.seed()
-  world_step = 30
-  position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
-                   [7, -7], [20, -17], [12, -10], [20, -13], [16, -17], 
-                   [16, -3], [2, -3], [2, -17]]
-  map_pos = [9, -10]
-  aruco_pos_list = [[-4.5, 0, 1.0, 0, 1.57, 0], 
-                    [8.60, -10.0, 1.0, 0, 1.57, 0],
-                    [23.0, 0, 1.0, 0, 1.57, 3.14],
-                    [-4.5, -20, 1.0, 0, 1.57, 0]]
-  robot_description = rospy.get_param('~robot_description')
-  map_path = rospy.get_param('~world_name')
-  aruco_path = rospy.get_param('~aruco_name')
-  f = open(map_path,'r')
-  map_description = f.read()
-  f.close()
-  f = open(aruco_path,'r')
-  aruco_description = f.read()
-  f.close()
-  rospy.wait_for_service('gazebo/spawn_urdf_model')
-  rospy.wait_for_service('gazebo/spawn_sdf_model')
-  spawn_model_prox = rospy.ServiceProxy('gazebo/spawn_urdf_model', SpawnModel)
-  spawn_model_sdf_prox = rospy.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
+#  # Generating a random orientation
+#  random.seed()
+#  world_step = 30
+#  position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
+#                   [7, -7], [20, -17], [12, -10], [20, -13], [16, -17], 
+#                   [16, -3], [2, -3], [2, -17]]
+#  map_pos = [9, -10]
+#  aruco_pos_list = [[-4.5, 0, 1.0, 0, 1.57, 0], 
+#                    [8.60, -10.0, 1.0, 0, 1.57, 0],
+#                    [23.0, 0, 1.0, 0, 1.57, 3.14],
+#                    [-4.5, -20, 1.0, 0, 1.57, 0]]
+#  robot_description = rospy.get_param('~robot_description')
+#  map_path = rospy.get_param('~world_name')
+#  aruco_path = rospy.get_param('~aruco_name')
+#  f = open(map_path,'r')
+#  map_description = f.read()
+#  f.close()
+#  f = open(aruco_path,'r')
+#  aruco_description = f.read()
+#  f.close()
+#  rospy.wait_for_service('gazebo/spawn_urdf_model')
+#  rospy.wait_for_service('gazebo/spawn_sdf_model')
+#  spawn_model_prox = rospy.ServiceProxy('gazebo/spawn_urdf_model', SpawnModel)
+#  spawn_model_sdf_prox = rospy.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
+#  
+#  num_drone = 0
+#  for start_pos in position_list:  
+#      num_drone += 1
+#      
+#      quadrotor_name = "quadrotor_" + str(num_drone)
+#      name_space = "number_" + str(num_drone)
+#      map_name = "map_" + str(num_drone)
+#      
+#      initial_pose = Pose()
+#      initial_pose.position.x = map_pos[0]
+#      initial_pose.position.y = map_pos[1] + (world_step * (num_drone - 1))
+#      initial_pose.position.z = 0.0
+#      
+#      spawn_model_sdf_prox(map_name, map_description, name_space, initial_pose, "world")    
+#      
+#      num_aruco_board = 0      
+#      for aruco_boards_pos in aruco_pos_list:
+#          num_aruco_board += 1
+#          
+#          aruco_name = "aruco_" + str(num_drone) + "_" + str(num_aruco_board)
+#          initial_pose = Pose()
+#          initial_pose.position.x = aruco_boards_pos[0]
+#          initial_pose.position.y = aruco_boards_pos[1] + (world_step * (num_drone - 1))
+#          initial_pose.position.z = aruco_boards_pos[2]
+#          quaternion = quaternion_from_euler(aruco_boards_pos[3], 
+#                                             aruco_boards_pos[4], 
+#                                             aruco_boards_pos[5])
+#          initial_pose.orientation.x = quaternion[0]
+#          initial_pose.orientation.y = quaternion[1]
+#          initial_pose.orientation.z = quaternion[2]
+#          initial_pose.orientation.w = quaternion[3]
+#          
+#          spawn_model_sdf_prox(aruco_name, aruco_description, name_space, initial_pose, "world")
+#      
+#      initial_pose = Pose()
+#      initial_pose.position.x = start_pos[0]
+#      initial_pose.position.y = start_pos[1] + (world_step * (num_drone - 1))
+#      initial_pose.position.z = 0.5
+#      angle = random.random() * 2 * np.pi
+#      quaternion = quaternion_from_euler(0, 0, angle)
+#      initial_pose.orientation.x = quaternion[0]
+#      initial_pose.orientation.y = quaternion[1]
+#      initial_pose.orientation.z = quaternion[2]
+#      initial_pose.orientation.w = quaternion[3]
+#  
+#      spawn_model_prox(quadrotor_name, robot_description, name_space, initial_pose, "world")
   
-  num_drone = 0
-  for start_pos in position_list:  
-      num_drone += 1
-      
-      quadrotor_name = "quadrotor_" + str(num_drone)
-      name_space = "number_" + str(num_drone)
-      map_name = "map_" + str(num_drone)
-      
-      initial_pose = Pose()
-      initial_pose.position.x = map_pos[0]
-      initial_pose.position.y = map_pos[1] + (world_step * (num_drone - 1))
-      initial_pose.position.z = 0.0
-      
-      spawn_model_sdf_prox(map_name, map_description, name_space, initial_pose, "world")    
-      
-      num_aruco_board = 0      
-      for aruco_boards_pos in aruco_pos_list:
-          num_aruco_board += 1
-          
-          aruco_name = "aruco_" + str(num_drone) + "_" + str(num_aruco_board)
-          initial_pose = Pose()
-          initial_pose.position.x = aruco_boards_pos[0]
-          initial_pose.position.y = aruco_boards_pos[1] + (world_step * (num_drone - 1))
-          initial_pose.position.z = aruco_boards_pos[2]
-          quaternion = quaternion_from_euler(aruco_boards_pos[3], 
-                                             aruco_boards_pos[4], 
-                                             aruco_boards_pos[5])
-          initial_pose.orientation.x = quaternion[0]
-          initial_pose.orientation.y = quaternion[1]
-          initial_pose.orientation.z = quaternion[2]
-          initial_pose.orientation.w = quaternion[3]
-          
-          spawn_model_sdf_prox(aruco_name, aruco_description, name_space, initial_pose, "world")
-      
-      initial_pose = Pose()
-      initial_pose.position.x = start_pos[0]
-      initial_pose.position.y = start_pos[1] + (world_step * (num_drone - 1))
-      initial_pose.position.z = 0.5
-      angle = random.random() * 2 * np.pi
-      quaternion = quaternion_from_euler(0, 0, angle)
-      initial_pose.orientation.x = quaternion[0]
-      initial_pose.orientation.y = quaternion[1]
-      initial_pose.orientation.z = quaternion[2]
-      initial_pose.orientation.w = quaternion[3]
-  
-      spawn_model_prox(quadrotor_name, robot_description, name_space, initial_pose, "world")
+  max_episode_length = 300
+  gamma = .99 # discount rate for advantage estimation and reward discounting
+  s_size = 21168 # Observations are greyscale frames of 84 * 84 * 1
+  a_size = 3 # Agent can move Left, Right, or Fire
+  load_model = False
+  model_path = './model'
+  # TO BE CHANGED
+  test = 0
+
+  tf.reset_default_graph()
+
+  if not os.path.exists(model_path):
+      os.makedirs(model_path)
+    
+  #Create a directory to save episode playback gifs to
+  if not os.path.exists('./frames'):
+      os.makedirs('./frames')
+
+  with tf.device("/cpu:0"): 
+      global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
+      trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
+      master_network = AC_Network(s_size,a_size,'global',None) # Generate global network
+      num_workers = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
+      workers = []
+      # Create worker classes
+      for i in range(num_workers):
+          workers.append(Worker(test,i,s_size,a_size,trainer,model_path,global_episodes))
+      saver = tf.train.Saver(max_to_keep=5)
+
+  with tf.Session() as sess:
+      coord = tf.train.Coordinator()
+      if load_model == True:
+          print ('Loading Model...')
+          ckpt = tf.train.get_checkpoint_state(model_path)
+          saver.restore(sess,ckpt.model_checkpoint_path)
+      else:
+          sess.run(tf.global_variables_initializer())
+        
+      # This is where the asynchronous magic happens.
+      # Start the "work" process for each worker in a separate threat.
+      worker_threads = []
+      for worker in workers:
+          worker_work = lambda: worker.work(max_episode_length,gamma,sess,coord,saver)
+          t = threading.Thread(target=(worker_work))
+          t.start()
+          worker_threads.append(t)
+      coord.join(worker_threads)  
   
   try:
     rospy.spin()

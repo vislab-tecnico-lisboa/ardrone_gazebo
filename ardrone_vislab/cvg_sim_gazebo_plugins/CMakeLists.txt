@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   std_msgs
+  cv_bridge
 )
 
 ## System dependencies are found with CMake's conventions
@@ -106,6 +107,8 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
   ${SDFormat_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  $ENV{ARUCO_LIB_PATH}/src
 )
 
 ## Declare a cpp library
@@ -131,6 +134,14 @@ add_dependencies(hector_gazebo_quadrotor_simple_controller ardrone_autonomy_genc
 add_library(hector_gazebo_quadrotor_state_controller src/quadrotor_state_controller.cpp)
 add_dependencies(hector_gazebo_quadrotor_state_controller ardrone_autonomy_gencpp)
 target_link_libraries(hector_gazebo_quadrotor_state_controller ${image_transport_LIBRARIES})
+
+add_library(aruco_plugin src/aruco_plugin.cpp)
+target_link_libraries(
+  aruco_plugin
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${ARUCO_LIBRARY}
+)
 
 
 ## Declare a cpp executable
