@@ -70,6 +70,8 @@ GazeboQuadrotorSimpleController::~GazeboQuadrotorSimpleController()
 void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 {
   world = _model->GetWorld();
+  
+  std::string starting_ns = _model->GetName();
 
   // load parameters
   if (!_sdf->HasElement("robotNamespace"))
@@ -79,17 +81,20 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
 
   if (!_sdf->HasElement("topicName"))
-    velocity_topic_ = "cmd_vel";
+    velocity_topic_ = "/" + starting_ns + "/" + "cmd_vel";
   else
     //velocity_topic_ = _sdf->GetElement("topicName")->GetValueString();
     velocity_topic_ = _sdf->GetElement("topicName")->Get<std::string>();
 
   if (!_sdf->HasElement("navdataTopic"))
-    navdata_topic_ = "ardrone/navdata";
+    navdata_topic_ = "/" + starting_ns + "/" + "ardrone/navdata";
   else
     //navdata_topic_ = _sdf->GetElement("navdataTopic")->GetValueString();
     navdata_topic_ = _sdf->GetElement("navdataTopic")->Get<std::string>();
 
+  navdata_topic_ = "/" + starting_ns + "/" + "ardrone/navdata";
+  
+  
   if (!_sdf->HasElement("imuTopic"))
     imu_topic_.clear();
   else
@@ -111,7 +116,8 @@ void GazeboQuadrotorSimpleController::Load(physics::ModelPtr _model, sdf::Elemen
     //link_name_ = _sdf->GetElement("bodyName")->GetValueString();
     link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
     //link = boost::shared_dynamic_cast<physics::Link>(world->GetEntity(link_name_));
-    link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
+    //link = boost::dynamic_pointer_cast<physics::Link>(world->GetEntity(link_name_));
+    link = _model->GetLink(link_name_);
   }
 
   if (!link)
