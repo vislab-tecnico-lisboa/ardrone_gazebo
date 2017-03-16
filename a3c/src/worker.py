@@ -82,6 +82,8 @@ class Worker():
         self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
+        
+        self.a_size = a_size
 
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(s_size,a_size,self.name,trainer)
@@ -160,8 +162,8 @@ class Worker():
         #ROS part
         # Generating a random orientation
         random.seed()
-        world_step = 30
-        position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
+        self.world_step = 30
+        self.position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
                          [7, -7], [20, -17], [12, -10], [20, -13], [16, -17], 
                        [16, -3], [2, -3], [2, -17]]
         map_pos = [9, -10]
@@ -169,8 +171,8 @@ class Worker():
                           [8.60, -10.0, 1.0, 0, 1.57, 0],
                           [23.0, 0, 1.0, 0, 1.57, 3.14],
                           [-4.5, -20, 1.0, 0, 1.57, 0]]
-        random_index = int(random.random() * len(position_list))
-        start_pos = position_list[random_index]
+        random_index = int(random.random() * len(self.position_list))
+        start_pos = self.position_list[random_index]
         robot_description = rospy.get_param('~robot_description')
         map_path = rospy.get_param('~world_name')
         aruco_path = rospy.get_param('~aruco_name')
@@ -185,15 +187,15 @@ class Worker():
         spawn_model_prox = rospy.ServiceProxy('gazebo/spawn_urdf_model', SpawnModel)
         spawn_model_sdf_prox = rospy.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
   
-        num_drone = name
+        self.num_drone = name
       
-        quadrotor_name = "quadrotor_" + str(num_drone)
-        name_space = "quadrotor_" + str(num_drone)
-        map_name = "map_" + str(num_drone)
+        self.quadrotor_name = "quadrotor_" + str(self.num_drone)
+        name_space = "quadrotor_" + str(self.num_drone)
+        map_name = "map_" + str(self.num_drone)
       
         initial_pose = Pose()
         initial_pose.position.x = map_pos[0]
-        initial_pose.position.y = map_pos[1] + (world_step * (num_drone - 1))
+        initial_pose.position.y = map_pos[1] + (self.world_step * (self.num_drone - 1))
         initial_pose.position.z = 0.0
       
         spawn_model_sdf_prox(map_name, map_description, name_space, initial_pose, "world")    
@@ -202,10 +204,10 @@ class Worker():
         for aruco_boards_pos in aruco_pos_list:
             num_aruco_board += 1
           
-            aruco_name = "aruco_" + str(num_drone) + "_" + str(num_aruco_board)
+            aruco_name = "aruco_" + str(self.num_drone) + "_" + str(num_aruco_board)
             initial_pose = Pose()
             initial_pose.position.x = aruco_boards_pos[0]
-            initial_pose.position.y = aruco_boards_pos[1] + (world_step * (num_drone - 1))
+            initial_pose.position.y = aruco_boards_pos[1] + (self.world_step * (self.num_drone - 1))
             initial_pose.position.z = aruco_boards_pos[2]
             quaternion = quaternion_from_euler(aruco_boards_pos[3], 
                                                aruco_boards_pos[4], 
@@ -219,7 +221,7 @@ class Worker():
       
         initial_pose = Pose()
         initial_pose.position.x = start_pos[0]
-        initial_pose.position.y = start_pos[1] + (world_step * (num_drone - 1))
+        initial_pose.position.y = start_pos[1] + (self.world_step * (self.num_drone - 1))
         initial_pose.position.z = 0.5
         angle = random.random() * 2 * np.pi
         quaternion = quaternion_from_euler(0, 0, angle)
@@ -228,7 +230,7 @@ class Worker():
         initial_pose.orientation.z = quaternion[2]
         initial_pose.orientation.w = quaternion[3]
   
-        spawn_model_prox(quadrotor_name, robot_description, name_space, initial_pose, "world")
+        spawn_model_prox(self.quadrotor_name, robot_description, name_space, initial_pose, "world")
         
          # Subscribers initialization
         self.image_sub = rospy.Subscriber("/" + name_space + "/ardrone/front/ardrone/front/image_raw",
@@ -416,7 +418,7 @@ class Worker():
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v:discounted_rewards,
             self.local_AC.inputs:np.vstack(observations),
-            self.local_AC.actions:actions,
+            self.local_AC.actions:np.vstack(actions),
             self.local_AC.advantages:advantages,
             self.local_AC.state_in[0]:rnn_state[0],
             self.local_AC.state_in[1]:rnn_state[1]}
@@ -467,19 +469,20 @@ class Worker():
                     rnn_state = self.local_AC.state_init
                     
                     #Take an action using probabilities from policy network output.
-                    a_dist,v,rnn_state = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
-                                                  feed_dict={self.local_AC.inputs:[s],
-                                                             self.local_AC.state_in[0]:rnn_state[0],
-                                                             self.local_AC.state_in[1]:rnn_state[1]})
-                    a = np.random.choice(a_dist[0],p=a_dist[0])
-                    a = np.argmax(a_dist == a)
+                    a,v,rnn_state = sess.run([self.local_AC.samp_action,self.local_AC.value,self.local_AC.state_out], 
+                                                 feed_dict={self.local_AC.inputs:[s],
+                                                            self.local_AC.state_in[0]:rnn_state[0],
+                                                            self.local_AC.state_in[1]:rnn_state[1]})         
+                    
+                    #print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
+                    a = np.squeeze(a)
                     
                     # Perform an action
                     cmd_input = Twist()
-                    cmd_input.linear.x = 0.0 # self.action[0][0]
-                    cmd_input.linear.y = 0.0 # self.action[0][1]
-                    cmd_input.linear.z = 0.0 # self.action[0][2]
-                    cmd_input.angular.z = 0.0 # self.action[0][3]
+                    cmd_input.linear.x = a[0]
+                    cmd_input.linear.y = a[1]
+                    cmd_input.linear.z = a[2]
+                    cmd_input.angular.z = a[3]
                     self.cmd_vel_pub.publish(cmd_input)
                     self.img_flag = False
                                             
@@ -533,22 +536,25 @@ class Worker():
                                 break
                             
                             #Take an action using probabilities from policy network output.
-                            a_dist,v,rnn_state = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
-                                                          feed_dict={self.local_AC.inputs:[s],
-                                                                     self.local_AC.state_in[0]:rnn_state[0],
-                                                                     self.local_AC.state_in[1]:rnn_state[1]})
-                            a = np.random.choice(a_dist[0],p=a_dist[0])
-                            a = np.argmax(a_dist == a)
+                            a,v,rnn_state = sess.run([self.local_AC.samp_action,self.local_AC.value,self.local_AC.state_out], 
+                                                        feed_dict={self.local_AC.inputs:[s],
+                                                                   self.local_AC.state_in[0]:rnn_state[0],
+                                                                   self.local_AC.state_in[1]:rnn_state[1]})         
+                                                                   
+                            #print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
+                            a = np.squeeze(a)
                             
                             # Perform an action
                             cmd_input = Twist()
-                            cmd_input.linear.x = 0.0 # self.action[0][0]
-                            cmd_input.linear.y = 0.0 # self.action[0][1]
-                            cmd_input.linear.z = 0.0 # self.action[0][2]
-                            cmd_input.angular.z = 0.0 # self.action[0][3]
+                            cmd_input.linear.x = a[0]
+                            cmd_input.linear.y = a[1]
+                            cmd_input.linear.z = a[2]
+                            cmd_input.angular.z = a[3]
                             self.cmd_vel_pub.publish(cmd_input)
                             self.img_flag = False
-                                                        
+                    
+                    print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
+                                    
                     self.episode_rewards.append(episode_reward)
                     self.episode_lengths.append(episode_step_count)
                     self.episode_mean_values.append(np.mean(episode_values))
@@ -587,3 +593,52 @@ class Worker():
                     if self.name == 'worker_0':
                         sess.run(self.increment)
                     episode_count += 1
+                    
+                    model_state_msg = ModelState()
+                    empty_msg = Empty()
+                    
+                    # Generating a new random position chosen between 4
+                    new_position = random.sample(self.position_list,  1)
+                    
+                    # Generating a random orientation
+                    angle = random.random() * 2 * np.pi
+                    
+                    rospy.loginfo("New position: " + str(new_position) + \
+                                  "New angle: " + str(angle))
+                    
+                    # Creating the model state message to send to set_model_space topic
+                    model_state_msg.model_name = self.quadrotor_name
+                    model_state_msg.pose.position.x = new_position[0][0]
+                    model_state_msg.pose.position.y = new_position[0][1] + (self.world_step * (self.num_drone - 1))
+                    model_state_msg.pose.position.z = 0.5
+                    quaternion = quaternion_from_euler(0, 0, angle)
+                    model_state_msg.pose.orientation.x = quaternion[0]
+                    model_state_msg.pose.orientation.y = quaternion[1]
+                    model_state_msg.pose.orientation.z = quaternion[2]
+                    model_state_msg.pose.orientation.w = quaternion[3]
+                    model_state_msg.reference_frame = "world"
+                    
+                    self.start_pos.linear.x = new_position[0][0]
+                    self.start_pos.linear.y = new_position[0][1] + (self.world_step * (self.num_drone - 1))
+                    self.start_pos.linear.z = 0.0
+                    
+                    # Reseting the episode starting time
+                    actual_time = rospy.get_rostime()
+                    self.start_time =  actual_time.secs + \
+                                       actual_time.nsecs / 1000000000
+            
+                    # reset the actions
+                    cmd_input.linear.x = 0.0
+                    cmd_input.linear.y = 0.0
+                    cmd_input.linear.z = 0.0
+                    cmd_input.angular.z = 0.0
+                    self.cmd_vel_pub.publish(cmd_input)
+                 
+                    # Reinitializing position, orientation and status of the drone
+                    self.land_pub.publish(empty_msg)
+                    self.model_state_pub.publish(model_state_msg)
+                    self.reset_pub.publish(empty_msg)
+                    rospy.sleep(0.5)
+                    self.takeoff_pub.publish(empty_msg)
+                    rospy.sleep(0.5)
+                    self.colliding_flag = False
