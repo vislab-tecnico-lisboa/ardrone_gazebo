@@ -3,7 +3,7 @@
 <launch>
  
   <arg name="training" default="1" />
-  <arg name="networks_dir" default="$(find a3c)/networks/" />
+  <arg name="networks_dir" default="$(find a3c)/networks" />
   <arg name="input" default="camera" />
   <arg name="imu_input" default="0" />
   

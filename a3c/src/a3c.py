@@ -643,12 +643,14 @@ def main(args):
 #  
 #      spawn_model_prox(quadrotor_name, robot_description, name_space, initial_pose, "world")
   
+  net_path = rospy.get_param('~networks_dir')  
+  
   max_episode_length = 300
   gamma = .99 # discount rate for advantage estimation and reward discounting
   s_size = 21168 # Observations are greyscale frames of 84 * 84 * 1
   a_size = 4 # Agent can move Left, Right, or Fire
   load_model = False
-  model_path = './model'
+  model_path = net_path + "/model"
   # TO BE CHANGED
   test = 0
 
@@ -658,8 +660,8 @@ def main(args):
       os.makedirs(model_path)
     
   #Create a directory to save episode playback gifs to
-  if not os.path.exists('./frames'):
-      os.makedirs('./frames')
+  if not os.path.exists(net_path + "/frames"):
+      os.makedirs(net_path + "/frames")
 
   with tf.device("/cpu:0"): 
       global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)

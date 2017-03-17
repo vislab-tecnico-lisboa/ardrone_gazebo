@@ -81,7 +81,6 @@ class Worker():
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
         
         self.a_size = a_size
 
@@ -100,6 +99,8 @@ class Worker():
         
         # Set to 1 to activate imu inputs and to 0 to deactivate (reading from a ros parameter)
         self.imu_input_mod = rospy.get_param('~imu_input')
+        
+        self.summary_writer = tf.summary.FileWriter(self.networks_dir + "/train_" + str(self.number))
         
         if self.imu_input_mod == 1:
           self.imu_dim = 37
