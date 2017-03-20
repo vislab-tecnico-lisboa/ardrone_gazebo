@@ -76,15 +76,15 @@ class AC_Network():
                 
                 self.pdfs = self.dist.pdf(self.actions)
                 
-                advantages_stacked = tf.reshape(tf.tile(self.advantages,tf.constant([a_size])), [tf.size(self.advantages),a_size])
+                self.advantages_stacked = tf.reshape(tf.tile(self.advantages,tf.constant([a_size])), [tf.size(self.advantages),a_size])
 
                 #self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
                 #Loss functions
                 self.value_loss = 0.5 * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value,[-1])))
-                self.entropy = - tf.reduce_sum((1 / 2) * (1 + tf.log(2 * tf.square(self.policy_std_dev) * self.policy_mean)))
-                self.policy_loss = -tf.reduce_sum(tf.multiply(tf.log(self.pdfs),advantages_stacked))
-                #self.policy_loss = -tf.reduce_sum(tf.log(self.pdfs)*advantages_stacked)
+                self.entropy = tf.reduce_sum(0.5 * (1.0 + tf.log(2.0 * tf.square(self.policy_std_dev) * np.pi)))
+                #self.policy_loss = -tf.reduce_sum(tf.multiply(tf.log(self.pdfs),self.advantages_stacked))
+                self.policy_loss = -tf.reduce_sum(tf.log(self.pdfs)*self.advantages_stacked)
                 self.loss = 0.5 * self.value_loss + self.policy_loss - self.entropy * 0.01
 
                 #Get gradients from local network using local losses

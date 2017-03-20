@@ -61,16 +61,11 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
                 
 class Worker():
-    def __init__(self,game,name,s_size,a_size,trainer,model_path,global_episodes):
-        
-        actual_time = rospy.get_rostime()
-        self.start_time =  actual_time.secs + \
-                           actual_time.nsecs / 1000000000  
-                           
+    def __init__(self,game,name,s_size,a_size,trainer,model_path,global_episodes):                           
         self.start_pos = Twist()
         self.start_pos.linear.x = 0.0
         self.start_pos.linear.y = 0.0
-        self.start_pos.linear.z = 0.0
+        self.start_pos.linear.z = 0.5
         
         self.name = "worker_" + str(name)
         self.number = name        
@@ -377,6 +372,8 @@ class Worker():
           actual_pos = self.model_states_pose_msg.position
           trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
                               (actual_pos.y - self.start_pos.linear.y)**2)
+          if (time_elapsed == 0):
+              time_elapsed = 0.1
           trav_cost = trav_dist / time_elapsed
           alt_cost = -abs(1 - actual_pos.z)
         rospy.logdebug("Travel distance reward: " + str(trav_cost))
@@ -430,6 +427,12 @@ class Worker():
             self.local_AC.var_norms,
             self.local_AC.apply_grads],
             feed_dict=feed_dict)
+
+        print "Entropy_loss: " + str(e_l) + \
+              ". Policy_loss: " + str(p_l) + \
+              ". Value_loss: " + str(v_l) + \
+              ". WORKER: " +  str(self.number)
+            
         return v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n,v_n
         
     def work(self,max_episode_length,gamma,sess,coord,saver):
@@ -439,6 +442,12 @@ class Worker():
         with sess.as_default(), sess.graph.as_default():                 
             while not coord.should_stop():
                 if self.img_flag:
+
+                    # Reseting the episode starting time
+                    actual_time = rospy.get_rostime()
+                    self.start_time =  actual_time.secs + \
+                                       actual_time.nsecs / 1000000000                    
+                    
                     # initialization a3c variables
                     sess.run(self.update_local_ops)
                     episode_buffer = []
@@ -619,27 +628,43 @@ class Worker():
                     model_state_msg.pose.orientation.w = quaternion[3]
                     model_state_msg.reference_frame = "world"
                     
-                    self.start_pos.linear.x = new_position[0][0]
-                    self.start_pos.linear.y = new_position[0][1] + (self.world_step * (self.num_drone - 1))
-                    self.start_pos.linear.z = 0.0
-                    
-                    # Reseting the episode starting time
-                    actual_time = rospy.get_rostime()
-                    self.start_time =  actual_time.secs + \
-                                       actual_time.nsecs / 1000000000
-            
-                    # reset the actions
-                    cmd_input.linear.x = 0.0
-                    cmd_input.linear.y = 0.0
-                    cmd_input.linear.z = 0.0
-                    cmd_input.angular.z = 0.0
-                    self.cmd_vel_pub.publish(cmd_input)
+                    self.start_pos.linear.x = model_state_msg.pose.position.x
+                    self.start_pos.linear.y = model_state_msg.pose.position.y
+                    self.start_pos.linear.z = model_state_msg.pose.position.z
+                                       
                  
                     # Reinitializing position, orientation and status of the drone
                     self.land_pub.publish(empty_msg)
+                    
+                    # reset the actions
+                    delta_t = 0.01
+                    wait_time = 0.5
+                    for it in range (int(wait_time / delta_t)):
+                        cmd_input.linear.x = 0.0
+                        cmd_input.linear.y = 0.0
+                        cmd_input.linear.z = 0.0
+                        cmd_input.angular.z = 0.0
+                        self.cmd_vel_pub.publish(cmd_input)
+                        rospy.sleep(delta_t)                    
+                    
                     self.model_state_pub.publish(model_state_msg)
                     self.reset_pub.publish(empty_msg)
-                    rospy.sleep(0.5)
+                    rospy.sleep(0.5) 
                     self.takeoff_pub.publish(empty_msg)
-                    rospy.sleep(0.5)
+                                        
+                    # reset the actions
+                    delta_t = 0.01
+                    wait_time = 0.5
+                    for it in range (int(wait_time / delta_t)):
+                        cmd_input.linear.x = 0.0
+                        cmd_input.linear.y = 0.0
+                        cmd_input.linear.z = 0.0
+                        cmd_input.angular.z = 0.0
+                        self.cmd_vel_pub.publish(cmd_input)
+                        rospy.sleep(delta_t)
+                    
+                    actual_time = rospy.get_rostime()
+                    self.start_time =  actual_time.secs + \
+                                       actual_time.nsecs / 1000000000                     
+                    
                     self.colliding_flag = False
