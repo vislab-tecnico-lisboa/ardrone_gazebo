@@ -15,8 +15,7 @@
   	<arg name="world" value="$(arg world)" />
   </include>
 
-
-  <group if="$(arg spawn_drone)">
+  <group if="$(arg spawn_drone)" ns="quadrotor">
   <!-- Spawn simulated quadrotor uav -->
   	<include file="$(find ardrone_vislab_gazebo)/launch/spawn_quadrotor.launch" >
     		<arg name="model" value="$(find ardrone_vislab_description)/urdf/quadrotor_sensors.urdf.xacro"/> 
