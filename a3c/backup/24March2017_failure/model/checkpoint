@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-475.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-475.cptk"

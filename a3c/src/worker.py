@@ -5,6 +5,7 @@ Created on Mon Mar  6 16:40:08 2017
 @author: Nino Cauli
 """
 
+import math
 import numpy as np
 import tensorflow as tf
 import scipy.signal
@@ -61,15 +62,17 @@ def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
                 
 class Worker():
-    def __init__(self,game,name,s_size,a_size,trainer,model_path,global_episodes):                           
+    def __init__(self,game,name,s_size,a_size,trainer,model_path,global_episodes,net_path):                     
         self.start_pos = Twist()
         self.start_pos.linear.x = 0.0
         self.start_pos.linear.y = 0.0
         self.start_pos.linear.z = 0.5
         
         self.name = "worker_" + str(name)
+        print "NAMEEEEEEE: " + self.name
         self.number = name        
         self.model_path = model_path
+        self.net_path = net_path
         self.trainer = trainer
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
@@ -127,33 +130,6 @@ class Worker():
         
         self.aruco_limit = 4.0
         self.altitude_limit = 2.0
-        
-#        #The Below code is related to setting up the Doom environment
-#        game.set_doom_scenario_path("basic.wad") #This corresponds to the simple task we will pose our agent
-#        game.set_doom_map("map01")
-#        game.set_screen_resolution(ScreenResolution.RES_160X120)
-#        game.set_screen_format(ScreenFormat.GRAY8)
-#        game.set_render_hud(False)
-#        game.set_render_crosshair(False)
-#        game.set_render_weapon(True)
-#        game.set_render_decals(False)
-#        game.set_render_particles(False)
-#        game.add_available_button(Button.MOVE_LEFT)
-#        game.add_available_button(Button.MOVE_RIGHT)
-#        game.add_available_button(Button.ATTACK)
-#        game.add_available_game_variable(GameVariable.AMMO2)
-#        game.add_available_game_variable(GameVariable.POSITION_X)
-#        game.add_available_game_variable(GameVariable.POSITION_Y)
-#        game.set_episode_timeout(300)
-#        game.set_episode_start_time(10)
-#        game.set_window_visible(False)
-#        game.set_sound_enabled(False)
-#        game.set_living_reward(-1)
-#        game.set_mode(Mode.PLAYER)
-#        game.init()
-#        self.actions = [[True,False,False],[False,True,False],[False,False,True]]
-#        #End Doom set-up
-#        self.env = game
         
         #ROS part
         # Generating a random orientation
@@ -262,6 +238,12 @@ class Worker():
         self.takeoff_pub.publish(Empty())
                                           
         self.bridge = CvBridge()
+        
+        self.old_dist = 0.0
+        actual_time = rospy.get_rostime()
+        self.start_time =  actual_time.secs + \
+                           actual_time.nsecs / 1000000000 
+        self.old_time = self.start_time
                                           
     def callback_imu(self,data):
       time_stamp = data.header.stamp.secs + \
@@ -342,7 +324,7 @@ class Worker():
         collision_cost = 0.0
         if self.colliding_flag:
             is_colliding = True
-            collision_cost = -10.0
+            collision_cost = -100.0
         rospy.logdebug("Collisions punishment: " + str(collision_cost))
             
         # Calculating the time elapsed from the last respawn
@@ -350,6 +332,7 @@ class Worker():
         time_stamp = actual_time.secs + \
                      actual_time.nsecs / 1000000000                    
         time_elapsed = time_stamp - self.start_time
+        time_cost = -time_elapsed / 0.5
         rospy.logdebug("Time elapsed: " + str(time_elapsed))
         
         # Calculating the aruco distance reward
@@ -373,8 +356,9 @@ class Worker():
           trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
                               (actual_pos.y - self.start_pos.linear.y)**2)
           if (time_elapsed == 0):
-              time_elapsed = 0.1
-          trav_cost = trav_dist / time_elapsed
+              time_elapsed = 0.01
+          #trav_cost = trav_dist / time_elapsed
+          trav_cost = trav_dist
           alt_cost = -abs(1 - actual_pos.z)
         rospy.logdebug("Travel distance reward: " + str(trav_cost))
     
@@ -385,16 +369,134 @@ class Worker():
         rospy.logdebug("Angular punishment: " + str(angular_cost))
         
         # Calculating the step reward
+        if np.isnan(collision_cost):
+            collision_cost = 0
+        if np.isnan(aruco_cost):
+            aruco_cost = 0
+        if np.isnan(trav_cost):
+            trav_cost = 0
+        if np.isnan(alt_cost):
+            alt_cost = 0
+#        if np.isnan(laser_cost):
+#            laser_cost = 0
+        if np.isnan(angular_cost):
+            angular_cost = 0 
+        if np.isnan(time_cost):
+            time_cost = 0    
+            
         step_reward = collision_cost + \
                       (10 * aruco_cost) + \
-                      trav_cost + alt_cost #\
+                      trav_cost + alt_cost  + time_cost #\
                       #+ laser_cost + angular_cost
         rospy.logdebug("Step reward: " + str(step_reward))
         
         return step_reward, aruco_cost, is_colliding
         
+    def reward_calculation2(self):
+        # Removing inf from laser ranges
+        if self.laser_msg != None:
+          laser_ranges = np.asarray(self.laser_msg.ranges)
+          laser_ranges[laser_ranges == inf] = 0
+        
+        # Calculating laser punishment
+#        laser_cost = 0.0
+#        if self.laser_msg != None:
+#          inverted_ranges = 1 - (laser_ranges / self.laser_msg.range_max)
+#          gaussian_ranges = np.multiply(inverted_ranges, signal.gaussian(self.feature_dim, (self.feature_dim / 2 * 0.8)))
+#          laser_cost = -np.sum(gaussian_ranges) / self.feature_dim
+#        rospy.logdebug("Laser range punishment: " + str(laser_cost))
+        
+        # Calculating the punishment for colliding
+        is_colliding = False
+        collision_cost = 0.0
+        if self.colliding_flag:
+            is_colliding = True
+            collision_cost = -1.0
+        rospy.logdebug("Collisions punishment: " + str(collision_cost))
+            
+        # Calculating the time elapsed from the last respawn
+        actual_time = rospy.get_rostime()        
+        time_stamp = actual_time.secs + \
+                     actual_time.nsecs / 1000000000                    
+        time_elapsed = time_stamp - self.old_time
+        time_cost = -time_elapsed
+        self.old_time = time_stamp
+        rospy.logdebug("Time cost: " + str(time_cost))
+        
+        # Calculating the aruco distance reward
+        aruco_dist = 0.0
+        aruco_cost = 0.0        
+        if self.aruco_msg != None:
+            aruco_dist = np.sqrt(self.aruco_msg.linear.x**2 + \
+                                 self.aruco_msg.linear.y**2 + \
+                                 self.aruco_msg.linear.z**2)
+            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
+                aruco_dist = self.aruco_limit
+            aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
+            rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
+            
+        # Calculating the traveled distance reward and the altitude punishment
+        trav_dist = 0.0
+        trav_cost = 0.0
+        alt_cost = 0.0
+        if self.model_states_pose_msg != None:
+          actual_pos = self.model_states_pose_msg.position
+          trav_dist = np.sqrt((actual_pos.x - self.start_pos.linear.x)**2 + \
+                              (actual_pos.y - self.start_pos.linear.y)**2)
+          trav_cost = trav_dist - self.old_dist
+          alt_cost = -abs(1 - actual_pos.z)
+          self.old_dist = trav_dist
+        rospy.logdebug("Travel distance reward: " + str(trav_cost))
+        rospy.logdebug("Altitude punishment: " + str(trav_cost))
+        
+    
+        # Calculating the angular velocity punishment
+        angular_cost = 0
+        if self.imu_msg != None:
+            angular_cost = -abs(self.imu_msg[6])
+        rospy.logdebug("Angular punishment: " + str(angular_cost))
+        
+        
+        nan_rew = 0.0        
+        # Calculating the step reward
+        if np.isnan(collision_cost):
+            print "Collision NAN!!!!. WORKER: " +  str(self.number)
+            collision_cost = 0
+            nan_rew = 1.0
+        if np.isnan(aruco_cost):
+            print "Aruco NAN!!!!. WORKER: " +  str(self.number)
+            aruco_cost = 0
+            nan_rew = 1.0
+        if np.isnan(trav_cost):
+            print "Trav NAN!!!!. WORKER: " +  str(self.number)
+            trav_cost = 0
+            nan_rew = 1.0
+        if np.isnan(alt_cost):
+            print "Alt NAN!!!!. WORKER: " +  str(self.number)
+            alt_cost = 0
+            nan_rew = 1.0
+#        if np.isnan(laser_cost):
+#            laser_cost = 0
+        if np.isnan(angular_cost):
+            print "Angular NAN!!!!. WORKER: " +  str(self.number)
+            angular_cost = 0
+            nan_rew = 1.0
+        if np.isnan(time_cost):
+            print "Time NAN!!!!. WORKER: " +  str(self.number)
+            time_cost = 0
+            nan_rew = 1.0
+            
+        step_reward = (10 * collision_cost) + \
+                      (0.5 * time_cost) + \
+                      trav_cost #+ alt_cost  + \
+                      #(10 * aruco_cost) + \
+                      #+ laser_cost + angular_cost
+        rospy.logdebug("Step reward: " + str(step_reward))
+        
+        return step_reward, aruco_cost, is_colliding, trav_cost, (0.5 * time_cost), nan_rew
+        
     def train(self,rollout,sess,gamma,bootstrap_value):
-        rospy.loginfo("Training")
+        rospy.logdebug("Training")
         rollout = np.array(rollout)
         observations = rollout[:,0]
         actions = rollout[:,1]
@@ -408,8 +510,8 @@ class Worker():
         self.rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
         discounted_rewards = discount(self.rewards_plus,gamma)[:-1]
         self.value_plus = np.asarray(values.tolist() + [bootstrap_value])
-        advantages = rewards + gamma * self.value_plus[1:] - self.value_plus[:-1]
-        advantages = discount(advantages,gamma)
+        advantagesFirst = rewards + gamma * self.value_plus[1:] - self.value_plus[:-1]
+        advantages = discount(advantagesFirst,gamma)
 
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
@@ -427,15 +529,30 @@ class Worker():
             self.local_AC.var_norms,
             self.local_AC.apply_grads],
             feed_dict=feed_dict)
-
-        print "Entropy_loss: " + str(e_l) + \
-              ". Policy_loss: " + str(p_l) + \
-              ". Value_loss: " + str(v_l) + \
-              ". WORKER: " +  str(self.number)
+              
+        if math.isnan(e_l) or math.isnan(p_l) or math.isnan(v_l):
+            print "STUCKKKKKKKKKKKKKKKKKKK"
+            print "Entropy_loss: " + str(e_l) + \
+                  ". Policy_loss: " + str(p_l) + \
+                  ". Value_loss: " + str(v_l) + \
+                  ". Inputs: " + str(np.vstack(observations)) + \
+                  ". Actions: " + str(np.vstack(actions)) + \
+                  ". Advantages: " + str(advantages) + \
+                  ". State_in[0]: " + str(rnn_state[0]) + \
+                  ". State_in[1]: " + str(rnn_state[1]) + \
+                  ". Bootstrap_value: " + str([bootstrap_value]) + \
+                  ". Rewards: " + str(rewards.tolist()) + \
+                  ". Rewards_plus: " + str(self.rewards_plus) + \
+                  ". Discounted_rewards: " + str(discounted_rewards) + \
+                  ". Value_plus: " + str(self.value_plus) + \
+                  ". AdvantagesFirst: " + str(advantagesFirst) + \
+                  ". WORKER: " +  str(self.number)
+            input()
             
+                      
         return v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n,v_n
         
-    def work(self,max_episode_length,gamma,sess,coord,saver):
+    def work(self,max_episode_length,gamma,sess,coord,saver):            
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
         rospy.loginfo("Starting worker " + str(self.number))
@@ -446,7 +563,9 @@ class Worker():
                     # Reseting the episode starting time
                     actual_time = rospy.get_rostime()
                     self.start_time =  actual_time.secs + \
-                                       actual_time.nsecs / 1000000000                    
+                                       actual_time.nsecs / 1000000000
+                    self.old_time = self.start_time
+                    self.old_dist = 0.0
                     
                     # initialization a3c variables
                     sess.run(self.update_local_ops)
@@ -490,15 +609,23 @@ class Worker():
                     # Perform an action
                     cmd_input = Twist()
                     cmd_input.linear.x = a[0]
-                    cmd_input.linear.y = a[1]
-                    cmd_input.linear.z = a[2]
-                    cmd_input.angular.z = a[3]
+                    cmd_input.linear.y = 0.0#a[1]
+                    cmd_input.linear.z = 0.0#a[2]
+                    cmd_input.angular.z = a[1]#a[3]
                     self.cmd_vel_pub.publish(cmd_input)
                     self.img_flag = False
-                                            
+                                         
+                    travSum = 0.0
+                    timeSum = 0.0
                     while d == False:
                         if self.img_flag:
-                            r, aruco_cost, is_colliding = self.reward_calculation()
+                            #reward version 1
+                            #r, aruco_cost, is_colliding = self.reward_calculation()
+                            #reward version 2
+                            r, aruco_cost, is_colliding, trav, timeCost, nan_rew = self.reward_calculation2()
+                            travSum += trav
+                            timeSum += timeCost
+                            
                             if is_colliding or \
                                (aruco_cost > 0.8) or \
                                episode_step_count == max_episode_length - 1:
@@ -530,15 +657,25 @@ class Worker():
                             total_steps += 1
                             episode_step_count += 1
                             
+                            if nan_rew:
+                                print "Episode: " + str(episode_count) + ". Step: " + str(total_steps)
+                            
                             # If the episode hasn't ended, but the experience buffer is full, then we
                             # make an update step using that experience rollout.
                             if len(episode_buffer) == 30 and d != True and episode_step_count != max_episode_length - 1:
                                 # Since we don't know what the true final return is, we "bootstrap" from our current
-                                # value estimation.
+                                # value estimation. 
                                 v1 = sess.run(self.local_AC.value, 
                                      feed_dict={self.local_AC.inputs:[s],
                                      self.local_AC.state_in[0]:rnn_state[0],
                                      self.local_AC.state_in[1]:rnn_state[1]})[0,0]
+                                while np.isnan(v1):
+                                    print "value bootstrap is NaN. WORKER: " +  str(self.number)
+                                    print "Episode: " + str(episode_count) + ". Step: " + str(total_steps)
+                                    v1 = sess.run(self.local_AC.value, 
+                                         feed_dict={self.local_AC.inputs:[s],
+                                         self.local_AC.state_in[0]:rnn_state[0],
+                                         self.local_AC.state_in[1]:rnn_state[1]})[0,0]    
                                 v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,v1)
                                 episode_buffer = []
                                 sess.run(self.update_local_ops)
@@ -557,13 +694,11 @@ class Worker():
                             # Perform an action
                             cmd_input = Twist()
                             cmd_input.linear.x = a[0]
-                            cmd_input.linear.y = a[1]
-                            cmd_input.linear.z = a[2]
-                            cmd_input.angular.z = a[3]
+                            cmd_input.linear.y = 0.0#a[1]
+                            cmd_input.linear.z = 0.0#a[2]
+                            cmd_input.angular.z = a[1]#a[3]
                             self.cmd_vel_pub.publish(cmd_input)
                             self.img_flag = False
-                    
-                    print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
                                     
                     self.episode_rewards.append(episode_reward)
                     self.episode_lengths.append(episode_step_count)
@@ -572,16 +707,23 @@ class Worker():
                     # Update the network using the experience buffer at the end of the episode.
                     if len(episode_buffer) != 0:
                         v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,0.0)
-                                    
+                    
+#                    print "Entropy_loss: " + str(e_l) + \
+#                          ". Policy_loss: " + str(p_l) + \
+#                          ". Value_loss: " + str(v_l) + \
+#                          ". Episodes: " + str(episode_count) + \
+#                          ". Trav_cost: " + str(travSum) + \
+#                          ". Time_cost: " + str(timeSum) + \
+#                          ". WORKER: " +  str(self.number)
                         
                     # Periodically save gifs of episodes, model parameters, and summary statistics.
                     if episode_count % 5 == 0 and episode_count != 0:
-                        if self.name == 'worker_0' and episode_count % 25 == 0:
-                            time_per_step = 0.05
-                            images = np.array(episode_frames)
-                            make_gif(images,'./frames/image'+str(episode_count)+'.gif',
-                                duration=len(images)*time_per_step,true_image=True,salience=False)
-                        if episode_count % 250 == 0 and self.name == 'worker_0':
+#                        if self.name == 'worker_0' and episode_count % 25 == 0:
+#                            time_per_step = 0.05
+#                            images = np.array(episode_frames)
+#                            make_gif(images,self.net_path + "/frames/image"+str(episode_count)+'.gif',
+#                                duration=len(images)*time_per_step,true_image=True,salience=False)
+                        if episode_count % 25 == 0 and self.name == 'worker_0':
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             print "Saved Model"
     
@@ -613,8 +755,8 @@ class Worker():
                     # Generating a random orientation
                     angle = random.random() * 2 * np.pi
                     
-                    rospy.loginfo("New position: " + str(new_position) + \
-                                  "New angle: " + str(angle))
+#                    rospy.loginfo("New position: " + str(new_position) + \
+#                                  "New angle: " + str(angle))
                     
                     # Creating the model state message to send to set_model_space topic
                     model_state_msg.model_name = self.quadrotor_name
