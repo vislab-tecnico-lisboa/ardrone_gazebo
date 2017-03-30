@@ -85,7 +85,7 @@ class AC_Network():
                 self.entropy = tf.reduce_sum(0.5 * (1.0 + tf.log(2.0 * tf.square(self.policy_std_dev) * np.pi)))
                 #self.policy_loss = -tf.reduce_sum(tf.multiply(tf.log(self.pdfs),self.advantages_stacked))
                 self.policy_loss = -tf.reduce_sum(tf.log(self.pdfs)*self.advantages_stacked)
-                self.loss = 0.5 * self.value_loss + self.policy_loss - self.entropy * 0.01
+                self.loss = 0.5 * self.value_loss + self.policy_loss #- self.entropy * 0.01
 
                 #Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)

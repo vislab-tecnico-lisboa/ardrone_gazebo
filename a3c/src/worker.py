@@ -487,8 +487,8 @@ class Worker():
             nan_rew = 1.0
             
         step_reward = (10 * collision_cost) + \
-                      (0.5 * time_cost) + \
                       trav_cost #+ alt_cost  + \
+                      #(0.5 * time_cost) + \
                       #(10 * aruco_cost) + \
                       #+ laser_cost + angular_cost
         rospy.logdebug("Step reward: " + str(step_reward))
@@ -672,10 +672,11 @@ class Worker():
                                 while np.isnan(v1):
                                     print "value bootstrap is NaN. WORKER: " +  str(self.number)
                                     print "Episode: " + str(episode_count) + ". Step: " + str(total_steps)
-                                    v1 = sess.run(self.local_AC.value, 
-                                         feed_dict={self.local_AC.inputs:[s],
-                                         self.local_AC.state_in[0]:rnn_state[0],
-                                         self.local_AC.state_in[1]:rnn_state[1]})[0,0]    
+                                    v1 = 0.0
+#                                    v1 = sess.run(self.local_AC.value, 
+#                                         feed_dict={self.local_AC.inputs:[s],
+#                                         self.local_AC.state_in[0]:rnn_state[0],
+#                                         self.local_AC.state_in[1]:rnn_state[1]})[0,0]    
                                 v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,v1)
                                 episode_buffer = []
                                 sess.run(self.update_local_ops)
