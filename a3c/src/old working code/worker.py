@@ -281,8 +281,6 @@ class Worker():
       self.bumper_msg = data
       if self.bumper_msg.states != []:
           self.colliding_flag = True
-      else:
-          self.colliding_flag = False
         
     def callback_navdata(self,data): 
       # 0: Unknown, 1: Init, 2: Landed, 3: Flying, 4: Hovering, 5: Test
