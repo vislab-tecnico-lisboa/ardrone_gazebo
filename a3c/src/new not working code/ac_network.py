@@ -23,7 +23,6 @@ class AC_Network():
             #Input and visual encoding layers
             self.inputs = tf.placeholder(shape=[None,s_size],dtype=tf.float32)
             self.imageIn = tf.reshape(self.inputs,shape=[-1, 9])
-            print "after inputs"
 #            self.imageIn = tf.reshape(self.inputs,shape=[-1, 84, 84, 3])
 #            self.conv1 = slim.conv2d(activation_fn=tf.nn.elu,
 #                inputs=self.imageIn,num_outputs=16,
@@ -33,7 +32,6 @@ class AC_Network():
 #                kernel_size=[4,4],stride=[2,2],padding='VALID')
 #            hidden = slim.fully_connected(slim.flatten(self.conv2),256,activation_fn=tf.nn.elu)
             hidden = slim.fully_connected(slim.flatten(self.imageIn),256,activation_fn=tf.nn.elu)
-            print "after hidden"
             
             #Recurrent network for temporal dependencies
             lstm_cell = tf.contrib.rnn.BasicLSTMCell(256,state_is_tuple=True)
@@ -53,7 +51,6 @@ class AC_Network():
             lstm_c, lstm_h = lstm_state
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
             rnn_out = tf.reshape(lstm_outputs, [-1, 256])
-            print "after recurrent"
             
             #Output layers for policy and value estimations
             self.policy_mean = slim.fully_connected(rnn_out,a_size,
@@ -69,13 +66,8 @@ class AC_Network():
                 weights_initializer=normalized_columns_initializer(1.0),
                 biases_initializer=None)
                 
-            print "after out"
-                
             self.dist = tf.contrib.distributions.Normal(mu=self.policy_mean, sigma=self.policy_std_dev)
-            self.samp_action = self.dist.sample([1])
-            
-            print "after dist"
-            
+            self.samp_action = self.dist.sample([1])     
             
             #Only the worker network need ops for loss functions and gradient updating.
             if scope != 'global':
@@ -83,8 +75,6 @@ class AC_Network():
                 #self.actions_onehot = tf.one_hot(self.actions,a_size,dtype=tf.float32)
                 self.target_v = tf.placeholder(shape=[None],dtype=tf.float32)
                 self.advantages = tf.placeholder(shape=[None],dtype=tf.float32)
-                
-                print "after placeholders"
                 
                 self.pdfs = self.dist.pdf(self.actions)
                 
@@ -98,22 +88,13 @@ class AC_Network():
                 #self.policy_loss = -tf.reduce_sum(tf.multiply(tf.log(self.pdfs),self.advantages_stacked))
                 self.policy_loss = -tf.reduce_sum(tf.log(self.pdfs)*self.advantages_stacked)
                 self.loss = 0.5 * self.value_loss + self.policy_loss #- self.entropy * 0.01
-                
-                print "after loss"
 
                 #Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-                print "after get collection"
                 self.gradients = tf.gradients(self.loss,local_vars)
-                print "after get grad"
                 self.var_norms = tf.global_norm(local_vars)
-                print "after var norm"
                 grads,self.grad_norms = tf.clip_by_global_norm(self.gradients,40.0)
-                
-                print "after grad"
                 
                 #Apply local gradients to global network
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
                 self.apply_grads = trainer.apply_gradients(zip(grads,global_vars))
-            
-            print "after all"

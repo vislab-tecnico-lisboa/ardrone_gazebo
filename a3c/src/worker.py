@@ -28,7 +28,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import time
 import os
 from collections import deque
-from tf.transformations import quaternion_from_euler
+from tf.transformations import quaternion_from_euler, euler_from_quaternion
 import json
 from numpy import inf
 
@@ -50,11 +50,11 @@ def update_target_graph(from_scope,to_scope):
 def process_frame(frame):
     #rospy.loginfo("shape before: " + str(np.shape(frame)))
     #s = frame[10:-10,30:-30]
-    s = frame
-    rospy.logdebug("shape after cutting: " + str(np.shape(s)))
-    s = scipy.misc.imresize(s,[84,84])
-    s = np.reshape(s,[np.prod(s.shape)]) / 255.0
-    rospy.logdebug("shape after reshaping: " + str(np.shape(s)))
+    cv_image_res = cv2.resize(frame,(84, 84), interpolation = cv2.INTER_AREA)
+    s = np.asarray(cv_image_res, dtype='float32')
+    rospy.logdebug("sum after cutting: " + str(np.sum(s)))
+    s = np.reshape(s,[np.prod(s.shape)]) / 255.0 
+    rospy.logdebug("sum after reshaping: " + str(np.sum(s)))
     return s
 
 # Discounting function used to calculate discounted returns.
@@ -67,6 +67,16 @@ class Worker():
         self.start_pos.linear.x = 0.0
         self.start_pos.linear.y = 0.0
         self.start_pos.linear.z = 0.5
+        
+        self.actions = [[-0.5, 0.0, 0.0, -0.5],
+                        [-0.5, 0.0, 0.0, 0.0],
+                        [-0.5, 0.0, 0.0, 0.5],
+                        [0.0, 0.0, 0.0, -0.5],
+                        [0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.5],
+                        [0.5, 0.0, 0.0, -0.5],
+                        [0.5, 0.0, 0.0, 0.0],
+                        [0.5, 0.0, 0.0, 0.5]]
         
         self.name = "worker_" + str(name)
         print "NAMEEEEEEE: " + self.name
@@ -128,21 +138,39 @@ class Worker():
         # Flag to know if a new image arrived
         self.img_flag = False
         
-        self.aruco_limit = 4.0
+        self.aruco_limit = 10.0
         self.altitude_limit = 2.0
         
         #ROS part
         # Generating a random orientation
         random.seed()
-        self.world_step = 30
-        self.position_list = [[0, 0], [20, 0], [20, -22], [0, -20], [0, -7], 
-                         [7, -7], [20, -17], [12, -10], [20, -13], [16, -17], 
-                       [16, -3], [2, -3], [2, -17]]
-        map_pos = [9, -10]
-        aruco_pos_list = [[-4.5, 0, 1.0, 0, 1.57, 0], 
-                          [8.60, -10.0, 1.0, 0, 1.57, 0],
-                          [23.0, 0, 1.0, 0, 1.57, 3.14],
-                          [-4.5, -20, 1.0, 0, 1.57, 0]]
+        self.world_step = 12
+#        self.position_list = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0],
+#                              [-1, 0], [-2, 0], [-3, 0], [-4, 0],
+#                              [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], 
+#                              [-1, 1], [-2, 1], [-3, 1], [-4, 1],
+#                              [0, 2], [1, 2], [2, 2], [3, 2], [4, 2], 
+#                              [-1, 2], [-2, 2], [-3, 2], [-4, 2],
+#                              [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], 
+#                              [-1, 3], [-2, 3], [-3, 3], [-4, 3],
+#                              [0, 4], [1, 4], [2, 4], [3, 4], [4, 4], 
+#                              [-1, 4], [-2, 4], [-3, 4], [-4, 4],
+#                              [0,-1], [1, -1], [2, -1], [3, -1], [4, -1], 
+#                              [-1, -1], [-2, -1], [-3, -1], [-4, -1],
+#                              [0, -2], [1, -2], [2, -2], [3, -2], [4, -2], 
+#                              [-1, -2], [-2, -2], [-3, -2], [-4, -2],
+#                              [0, -3], [1, -3], [2, -3], [3, -3], [4, -3], 
+#                              [-1, -3], [-2, -3], [-3, -3], [-4, -3],
+#                              [0, -4], [1, -4], [2, -4], [3, -4], [4, -4], 
+#                              [-1, -4], [-2, -4], [-3, -4], [-4, -4]]
+        self.position_list = [[0, 0]]
+        map_pos = [0.0, 0.0, 2.5]
+#        aruco_pos_list = [[-4.5, 0, 1.5, 0, 1.57, 0],
+#                          [4.5, 0, 1.5, 0, 1.57, 3.14],
+#                          [0, -4.5, 1.5, 0, 1.57, 1.57],
+#                          [0, 4.5, 1.5, 0, 1.57, -1.57]]
+        aruco_pos_list = [[-4.5, 0, 1.5, 0, 1.57, 0]]
+        self.aruco_pos_world = aruco_pos_list[0]
         random_index = int(random.random() * len(self.position_list))
         start_pos = self.position_list[random_index]
         robot_description = rospy.get_param('~robot_description')
@@ -168,7 +196,7 @@ class Worker():
         initial_pose = Pose()
         initial_pose.position.x = map_pos[0]
         initial_pose.position.y = map_pos[1] + (self.world_step * (self.num_drone - 1))
-        initial_pose.position.z = 0.0
+        initial_pose.position.z = map_pos[2]
       
         spawn_model_sdf_prox(map_name, map_description, name_space, initial_pose, "world")    
       
@@ -214,7 +242,7 @@ class Worker():
         self.navdata_sub = rospy.Subscriber("/" + name_space + "/ardrone/navdata",
                                             Navdata, self.callback_navdata)
         self.aruco_sub = rospy.Subscriber("/" + name_space + "/ardrone/aruco/pose",
-                                            Twist, self.callback_aruco)
+                                            Pose, self.callback_aruco)
         self.model_states_sub = rospy.Subscriber("/gazebo/model_states",
                                                  ModelStates, self.callback_model_states)
         self.laser_sub = rospy.Subscriber("/" + name_space + "/ardrone/laser",
@@ -281,8 +309,6 @@ class Worker():
       self.bumper_msg = data
       if self.bumper_msg.states != []:
           self.colliding_flag = True
-      else:
-          self.colliding_flag = False
         
     def callback_navdata(self,data): 
       # 0: Unknown, 1: Init, 2: Landed, 3: Flying, 4: Hovering, 5: Test
@@ -338,16 +364,16 @@ class Worker():
         rospy.logdebug("Time elapsed: " + str(time_elapsed))
         
         # Calculating the aruco distance reward
-        aruco_dist = 0.0
-        aruco_cost = 0.0        
-        if self.aruco_msg != None:
-            aruco_dist = np.sqrt(self.aruco_msg.linear.x**2 + \
-                                 self.aruco_msg.linear.y**2 + \
-                                 self.aruco_msg.linear.z**2)
-            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
-                aruco_dist = self.aruco_limit
-            aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
-            rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
+#        aruco_dist = 0.0
+#        aruco_cost = 0.0        
+#        if self.aruco_msg != None:
+#            aruco_dist = np.sqrt(self.aruco_msg.position.x**2 + \
+#                                 self.aruco_msg.position.y**2 + \
+#                                 self.aruco_msg.position.z**2)
+#            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
+#                aruco_dist = self.aruco_limit
+#            aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
+#            rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
             
         # Calculating the traveled distance reward and the altitude punishment
         trav_dist = 0.0
@@ -426,16 +452,62 @@ class Worker():
         rospy.logdebug("Time cost: " + str(time_cost))
         
         # Calculating the aruco distance reward
+#        aruco_dist = 0.0
+#        aruco_cost = 0.0
+#        aruco_angle_cost = -1.0
+#        aruco_reward = 0.0
+#        if self.aruco_msg != None:
+#            aruco_dist = np.sqrt(self.aruco_msg.position.x**2 + \
+#                                 self.aruco_msg.position.y**2 + \
+#                                 self.aruco_msg.position.z**2)
+#            if aruco_dist <= 0.01 or aruco_dist > self.aruco_limit:
+#                aruco_dist = self.aruco_limit
+#            aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
+#            if np.isnan(aruco_cost):
+#                aruco_cost = 0.0
+#                aruco_angle_cost = 0.0
+#                print ("ARUCO NAN")
+#            else:
+#                rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
+#                aruco_orient = np.array([0.0, 1.0])
+#                des_orient = np.array([self.aruco_msg.position.x, self.aruco_msg.position.z])
+##                print ("drone orientation norm: " + str(np.linalg.norm(drone_orient)))
+##                print ("desired orientation norm: " + str(np.linalg.norm(des_orient)))
+#                if np.linalg.norm(des_orient) != 0:
+#                    orient_error = np.arccos(np.inner(aruco_orient, des_orient) / (np.linalg.norm(aruco_orient) * np.linalg.norm(des_orient))) 
+#                else:
+#                    orient_error = np.pi
+#                aruco_angle_cost = 1.0 - abs(orient_error / np.pi)
+#                if (aruco_cost > 0.9):            
+#                    aruco_reward = 1.0
+                
+        # Calculating aruco distance using real positions
         aruco_dist = 0.0
-        aruco_cost = 0.0        
-        if self.aruco_msg != None:
-            aruco_dist = np.sqrt(self.aruco_msg.linear.x**2 + \
-                                 self.aruco_msg.linear.y**2 + \
-                                 self.aruco_msg.linear.z**2)
-            if aruco_dist == 0.0 or aruco_dist > self.aruco_limit:
+        aruco_cost = 0.0
+        aruco_angle_cost = -1.0
+        aruco_reward = 0.0
+        if self.model_states_pose_msg != None:
+            arucoP = np.array([self.aruco_pos_world[0], self.aruco_pos_world[1] + (self.world_step * (self.num_drone - 1))])
+            droneP = np.array([self.model_states_pose_msg.position.x,
+                               self.model_states_pose_msg.position.y])
+            droneO = np.array([self.model_states_pose_msg.orientation.x,
+                               self.model_states_pose_msg.orientation.y,
+                               self.model_states_pose_msg.orientation.z,
+                               self.model_states_pose_msg.orientation.w])
+            desired_orient = arucoP - droneP
+            aruco_dist = np.linalg.norm(desired_orient)
+            if aruco_dist > self.aruco_limit:
                 aruco_dist = self.aruco_limit
             aruco_cost = 1.0 - (aruco_dist / self.aruco_limit)
-            rospy.logdebug("Aruco distance reward: " + str(aruco_cost))
+            # aruco_cost = -(aruco_dist / self.aruco_limit)
+            (drone_roll, drone_pitch, drone_yaw) = euler_from_quaternion(droneO)
+            droneO_vect = np.array([np.cos(drone_yaw), np.sin(drone_yaw)])
+            orient_error = np.arccos(np.inner(droneO_vect, desired_orient) / (np.linalg.norm(droneO_vect) * np.linalg.norm(desired_orient)))
+            aruco_angle_cost = 1.0 - abs(orient_error / np.pi)
+            if (aruco_cost > 0.9):            
+                aruco_reward = 1.0
+#            print ("Orientation error real: " + str(orient_error) +
+#                   ". Aruco dist real: " + str(aruco_dist))
             
         # Calculating the traveled distance reward and the altitude punishment
         trav_dist = 0.0
@@ -488,14 +560,16 @@ class Worker():
             time_cost = 0
             nan_rew = 1.0
             
-        step_reward = (10 * collision_cost) + \
-                      trav_cost #+ alt_cost  + \
+        step_reward = (0.01 * aruco_cost) + (0.01 * aruco_angle_cost) + (10.0 * aruco_reward)#+ alt_cost  + \
                       #(0.5 * time_cost) + \
-                      #(10 * aruco_cost) + \
                       #+ laser_cost + angular_cost
         rospy.logdebug("Step reward: " + str(step_reward))
         
-        return step_reward, aruco_cost, is_colliding, trav_cost, (0.5 * time_cost), nan_rew
+#        print ("Orientation cost: " + str(aruco_angle_cost) +
+#               ". Aruco dist cost: " + str(aruco_cost) + 
+#               "Step reward: " + str(step_reward))
+        
+        return step_reward, aruco_cost, is_colliding, aruco_angle_cost, (0.5 * time_cost), nan_rew, aruco_reward
         
     def train(self,rollout,sess,gamma,bootstrap_value):
         rospy.logdebug("Training")
@@ -520,7 +594,7 @@ class Worker():
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v:discounted_rewards,
             self.local_AC.inputs:np.vstack(observations),
-            self.local_AC.actions:np.vstack(actions),
+            self.local_AC.actions:actions,
             self.local_AC.advantages:advantages,
             self.local_AC.state_in[0]:rnn_state[0],
             self.local_AC.state_in[1]:rnn_state[1]}
@@ -549,7 +623,6 @@ class Worker():
                   ". Value_plus: " + str(self.value_plus) + \
                   ". AdvantagesFirst: " + str(advantagesFirst) + \
                   ". WORKER: " +  str(self.number)
-            input()
             
                       
         return v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n,v_n
@@ -573,7 +646,7 @@ class Worker():
                     sess.run(self.update_local_ops)
                     episode_buffer = []
                     episode_values = []
-                    episode_frames = []
+                    #episode_frames = []
                     episode_reward = 0
                     episode_step_count = 0
                     d = False                    
@@ -588,32 +661,30 @@ class Worker():
                     # Risizeing the image to 160x80 pixel for the convolutional network
                     #cv_image_resized = cv2.resize(cv_image, (160, 80))
                     #array_image = np.asarray(cv_image_resized)
-                    array_image = np.asarray(cv_image, dtype='float32')
                     #input_image = np.zeros((1, 80, 160, 3))
                     #input_image[0] = array_image
                     
                     # process and store the frame
-                    episode_frames.append(array_image)
-                    input_image = process_frame(array_image)
+                    #episode_frames.append(array_image)
+                    input_image = process_frame(cv_image)
                     s = input_image
                     # rnn initialization
                     rnn_state = self.local_AC.state_init
                     
                     #Take an action using probabilities from policy network output.
-                    a,v,rnn_state = sess.run([self.local_AC.samp_action,self.local_AC.value,self.local_AC.state_out], 
-                                                 feed_dict={self.local_AC.inputs:[s],
-                                                            self.local_AC.state_in[0]:rnn_state[0],
-                                                            self.local_AC.state_in[1]:rnn_state[1]})         
-                    
-                    #print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
-                    a = np.squeeze(a)
+                    a_dist,v,rnn_state = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
+                        feed_dict={self.local_AC.inputs:[s],
+                        self.local_AC.state_in[0]:rnn_state[0],
+                        self.local_AC.state_in[1]:rnn_state[1]})
+                    a = np.random.choice(a_dist[0],p=a_dist[0])
+                    a = np.argmax(a_dist == a)
                     
                     # Perform an action
                     cmd_input = Twist()
-                    cmd_input.linear.x = a[0]
-                    cmd_input.linear.y = 0.0#a[1]
-                    cmd_input.linear.z = 0.0#a[2]
-                    cmd_input.angular.z = a[1]#a[3]
+                    cmd_input.linear.x = self.actions[a][0]
+                    cmd_input.linear.y = self.actions[a][1]
+                    cmd_input.linear.z = self.actions[a][2]
+                    cmd_input.angular.z = self.actions[a][3]
                     self.cmd_vel_pub.publish(cmd_input)
                     self.img_flag = False
                                          
@@ -624,17 +695,25 @@ class Worker():
                             #reward version 1
                             #r, aruco_cost, is_colliding = self.reward_calculation()
                             #reward version 2
-                            r, aruco_cost, is_colliding, trav, timeCost, nan_rew = self.reward_calculation2()
-                            travSum += trav
-                            timeSum += timeCost
-                            
+                            r, aruco_cost, is_colliding, aruco_angle_cost, timeCost, nan_rew, aruco_reward = self.reward_calculation2()
+                            travSum += aruco_angle_cost
+                            timeSum += timeCost                    
                             if is_colliding or \
-                               (aruco_cost > 0.8) or \
+                               (aruco_reward > 0.0) or \
                                episode_step_count == max_episode_length - 1:
                                 d = True
+                                imagepixelmean = np.sum(s) / s.size
+                                print ("Is colliding: " + str(is_colliding) +
+                                       ". aruco cost (<= 0.9): " + str(aruco_cost) + 
+                                       ". episode_step_count: " + str(episode_step_count) +
+                                       ". max_episode_length: " + str(max_episode_length) +
+                                       ". aruco_angle_cost: " + str(aruco_angle_cost) +
+                                       ". aruco_reward: " + str(aruco_reward) +
+                                       ". image pixel mean: " + str(imagepixelmean) +
+                                       ". Total reward: " + str(r))
                             else:
                                 d = False                            
-                            
+                    
                             if d == False:
                                 # Reading the camera image from the topic
                                 try:
@@ -644,18 +723,26 @@ class Worker():
                                     rospy.logerror(err)
           
                                 # Risizeing the image to 160x80 pixel for the convolutional network
-                                array_image = np.asarray(cv_image, dtype='float32')
-                                episode_frames.append(array_image)
-                                input_image = process_frame(array_image)
+                                #episode_frames.append(array_image)
+                                input_image = process_frame(cv_image)
                                 s1 = input_image
                             else:
-                                s1 = s
+                                s1 = s                              
                                 
                             episode_buffer.append([s,a,r,s1,d,v[0,0]])
                             episode_values.append(v[0,0])
         
                             episode_reward += r
-                            s = s1                    
+                            s = s1 
+#                            imagepixelmean = np.sum(s1) / s1.size
+#                            print ("Is colliding: " + str(is_colliding) +
+#                                       ". aruco cost (<= 0.9): " + str(aruco_cost) + 
+#                                       ". episode_step_count: " + str(episode_step_count) +
+#                                       ". max_episode_length: " + str(max_episode_length) +
+#                                       ". aruco_angle_cost: " + str(aruco_angle_cost) +
+#                                       ". aruco_reward: " + str(aruco_reward) +
+#                                       ". image pixel mean: " + str(imagepixelmean) +
+#                                       ". Total reward: " + str(r))
                             total_steps += 1
                             episode_step_count += 1
                             
@@ -664,7 +751,7 @@ class Worker():
                             
                             # If the episode hasn't ended, but the experience buffer is full, then we
                             # make an update step using that experience rollout.
-                            if len(episode_buffer) == 30 and d != True and episode_step_count != max_episode_length - 1:
+                            if len(episode_buffer) == 500 and d != True and episode_step_count != max_episode_length - 1:
                                 # Since we don't know what the true final return is, we "bootstrap" from our current
                                 # value estimation. 
                                 v1 = sess.run(self.local_AC.value, 
@@ -678,7 +765,7 @@ class Worker():
 #                                    v1 = sess.run(self.local_AC.value, 
 #                                         feed_dict={self.local_AC.inputs:[s],
 #                                         self.local_AC.state_in[0]:rnn_state[0],
-#                                         self.local_AC.state_in[1]:rnn_state[1]})[0,0]    
+#                                         self.local_AC.state_in[1]:rnn_state[1]})[0,0] 
                                 v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,v1)
                                 episode_buffer = []
                                 sess.run(self.update_local_ops)
@@ -686,22 +773,21 @@ class Worker():
                                 break
                             
                             #Take an action using probabilities from policy network output.
-                            a,v,rnn_state = sess.run([self.local_AC.samp_action,self.local_AC.value,self.local_AC.state_out], 
-                                                        feed_dict={self.local_AC.inputs:[s],
-                                                                   self.local_AC.state_in[0]:rnn_state[0],
-                                                                   self.local_AC.state_in[1]:rnn_state[1]})         
-                                                                   
-                            #print "ACTIOOOONNNNSSSS BEFOREEEE: " + str(a)
-                            a = np.squeeze(a)
+                            a_dist,v,rnn_state = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
+                                feed_dict={self.local_AC.inputs:[s],
+                                self.local_AC.state_in[0]:rnn_state[0],
+                                self.local_AC.state_in[1]:rnn_state[1]})
+                            a = np.random.choice(a_dist[0],p=a_dist[0])
+                            a = np.argmax(a_dist == a)
                             
                             # Perform an action
                             cmd_input = Twist()
-                            cmd_input.linear.x = a[0]
-                            cmd_input.linear.y = 0.0#a[1]
-                            cmd_input.linear.z = 0.0#a[2]
-                            cmd_input.angular.z = a[1]#a[3]
+                            cmd_input.linear.x = self.actions[a][0]
+                            cmd_input.linear.y = self.actions[a][1]
+                            cmd_input.linear.z = self.actions[a][2]
+                            cmd_input.angular.z = self.actions[a][3]
                             self.cmd_vel_pub.publish(cmd_input)
-                            self.img_flag = False
+                            self.img_flag = False                            
                                     
                     self.episode_rewards.append(episode_reward)
                     self.episode_lengths.append(episode_step_count)
@@ -725,7 +811,7 @@ class Worker():
 #                            time_per_step = 0.05
 #                            images = np.array(episode_frames)
 #                            make_gif(images,self.net_path + "/frames/image"+str(episode_count)+'.gif',
-#                                duration=len(images)*time_per_step,true_image=True,salience=False)
+#                                duration=len(images)*time_per_step,true_image=True,salience=False)                        
                         if episode_count % 25 == 0 and self.name == 'worker_0':
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             print "Saved Model"
@@ -783,7 +869,7 @@ class Worker():
                     
                     # reset the actions
                     delta_t = 0.01
-                    wait_time = 0.5
+                    wait_time = 2.0
                     for it in range (int(wait_time / delta_t)):
                         cmd_input.linear.x = 0.0
                         cmd_input.linear.y = 0.0
@@ -791,7 +877,7 @@ class Worker():
                         cmd_input.angular.z = 0.0
                         self.cmd_vel_pub.publish(cmd_input)
                         rospy.sleep(delta_t)                    
-                    
+                  
                     self.model_state_pub.publish(model_state_msg)
                     self.reset_pub.publish(empty_msg)
                     rospy.sleep(0.5) 
@@ -799,7 +885,7 @@ class Worker():
                                         
                     # reset the actions
                     delta_t = 0.01
-                    wait_time = 0.5
+                    wait_time = 2.0
                     for it in range (int(wait_time / delta_t)):
                         cmd_input.linear.x = 0.0
                         cmd_input.linear.y = 0.0
@@ -807,7 +893,7 @@ class Worker():
                         cmd_input.angular.z = 0.0
                         self.cmd_vel_pub.publish(cmd_input)
                         rospy.sleep(delta_t)
-                    
+                 
                     actual_time = rospy.get_rostime()
                     self.start_time =  actual_time.secs + \
                                        actual_time.nsecs / 1000000000                     

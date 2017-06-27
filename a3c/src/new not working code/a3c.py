@@ -50,7 +50,7 @@ def main(args):
   gamma = .99 # discount rate for advantage estimation and reward discounting
   s_size = 9 #21168 # Observations are greyscale frames of 84 * 84 * 1
   a_size = 2 # Agent can move Left, Right, or Fire
-  load_model = False
+  load_model = True
   model_path = net_path + "/model"
   # TO BE CHANGED
   test = 0

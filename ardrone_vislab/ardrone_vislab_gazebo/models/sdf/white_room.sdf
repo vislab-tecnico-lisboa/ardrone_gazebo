@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+<sdf version="1.4">
+    <model name="room">
+      <pose>0 0 2.5 0 0 0</pose>
+      <static>true</static>
+      <link name="wall1">
+        <pose>-5 0 0 0 0 0</pose>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia> <!-- interias are tricky to compute -->
+            <!-- http://answers.gazebosim.org/question/4372/the-inertia-matrix-explained/ -->
+            <ixx>10,375</ixx>       <!-- for a box: ixx = 0.083 * mass * (y*y + z*z) -->
+            <ixy>0.0</ixy>         <!-- for a box: ixy = 0 -->
+            <ixz>0.0</ixz>         <!-- for a box: ixz = 0 -->
+            <iyy>2,09575</iyy>       <!-- for a box: iyy = 0.083 * mass * (x*x + z*z) -->
+            <iyz>0.0</iyz>         <!-- for a box: iyz = 0 -->
+            <izz>8,32075</izz>       <!-- for a box: izz = 0.083 * mass * (x*x + y*y) -->
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 10 5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 10 5</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+      <link name="wall2">
+        <pose>5 0 0 0 0 0</pose>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia> <!-- interias are tricky to compute -->
+            <!-- http://answers.gazebosim.org/question/4372/the-inertia-matrix-explained/ -->
+            <ixx>10,375</ixx>       <!-- for a box: ixx = 0.083 * mass * (y*y + z*z) -->
+            <ixy>0.0</ixy>         <!-- for a box: ixy = 0 -->
+            <ixz>0.0</ixz>         <!-- for a box: ixz = 0 -->
+            <iyy>2,09575</iyy>       <!-- for a box: iyy = 0.083 * mass * (x*x + z*z) -->
+            <iyz>0.0</iyz>         <!-- for a box: iyz = 0 -->
+            <izz>8,32075</izz>       <!-- for a box: izz = 0.083 * mass * (x*x + y*y) -->
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 10 5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 10 5</size>
+            </box>
+          </geometry>
+          <material>
+	      <ambient>1 0 0 1</ambient>
+              <diffuse>1 0 0 1</diffuse>
+              <specular>0.1 0.1 0.1 1</specular>
+              <emissive>0 0 0 0</emissive>
+          </material>
+        </visual>
+      </link>
+      <link name="wall3">
+        <pose>0 -5 0 0 0 0</pose>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia> <!-- interias are tricky to compute -->
+            <!-- http://answers.gazebosim.org/question/4372/the-inertia-matrix-explained/ -->
+            <ixx>2,09575</ixx>       <!-- for a box: ixx = 0.083 * mass * (y*y + z*z) -->
+            <ixy>0.0</ixy>         <!-- for a box: ixy = 0 -->
+            <ixz>0.0</ixz>         <!-- for a box: ixz = 0 -->
+            <iyy>10,375</iyy>       <!-- for a box: iyy = 0.083 * mass * (x*x + z*z) -->
+            <iyz>0.0</iyz>         <!-- for a box: iyz = 0 -->
+            <izz>8,32075</izz>       <!-- for a box: izz = 0.083 * mass * (x*x + y*y) -->
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>10 0.5 5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>10 0.5 5</size>
+            </box>
+          </geometry>
+	  <material>
+	      <ambient>0 1 0 1</ambient>
+              <diffuse>0 1 0 1</diffuse>
+              <specular>0.1 0.1 0.1 1</specular>
+              <emissive>0 0 0 0</emissive>
+          </material>
+        </visual>
+      </link>
+      <link name="wall4">
+        <pose>0 5 0 0 0 0</pose>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia> <!-- interias are tricky to compute -->
+            <!-- http://answers.gazebosim.org/question/4372/the-inertia-matrix-explained/ -->
+            <ixx>2,09575</ixx>       <!-- for a box: ixx = 0.083 * mass * (y*y + z*z) -->
+            <ixy>0.0</ixy>         <!-- for a box: ixy = 0 -->
+            <ixz>0.0</ixz>         <!-- for a box: ixz = 0 -->
+            <iyy>10,375</iyy>       <!-- for a box: iyy = 0.083 * mass * (x*x + z*z) -->
+            <iyz>0.0</iyz>         <!-- for a box: iyz = 0 -->
+            <izz>8,32075</izz>       <!-- for a box: izz = 0.083 * mass * (x*x + y*y) -->
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>10 0.5 5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>10 0.5 5</size>
+            </box>
+          </geometry>
+          <material>
+	      <ambient>0 0 1 1</ambient>
+              <diffuse>0 0 1 1</diffuse>
+              <specular>0.1 0.1 0.1 1</specular>
+              <emissive>0 0 0 0</emissive>
+          </material>
+        </visual>
+      </link>
+      <link name="floor">
+        <pose>0 0 -2.5 0 0 0</pose>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia> <!-- interias are tricky to compute -->
+            <!-- http://answers.gazebosim.org/question/4372/the-inertia-matrix-explained/ -->
+            <ixx>8,32075</ixx>       <!-- for a box: ixx = 0.083 * mass * (y*y + z*z) -->
+            <ixy>0.0</ixy>         <!-- for a box: ixy = 0 -->
+            <ixz>0.0</ixz>         <!-- for a box: ixz = 0 -->
+            <iyy>8,32075</iyy>       <!-- for a box: iyy = 0.083 * mass * (x*x + z*z) -->
+            <iyz>0.0</iyz>         <!-- for a box: iyz = 0 -->
+            <izz>16,6</izz>       <!-- for a box: izz = 0.083 * mass * (x*x + y*y) -->
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>10 10 0.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>10 10 0.5</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+</sdf>

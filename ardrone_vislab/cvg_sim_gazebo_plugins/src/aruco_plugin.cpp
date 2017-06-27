@@ -79,7 +79,7 @@ namespace gazebo
       pub_topic_name.append(topicName);
       
       image_sub_ = it_.subscribe(image_topic_name, 1, &ArucoPlugin::imageCb, this);
-      aruco_pose_pub_ = nh_.advertise<geometry_msgs::Twist>(pub_topic_name, 1);
+      aruco_pose_pub_ = nh_.advertise<geometry_msgs::Pose>(pub_topic_name, 1);
 
       //cv::namedWindow(OPENCV_WINDOW);
       
@@ -132,7 +132,7 @@ namespace gazebo
   {
     if (image_received)
     {
-      geometry_msgs::Twist aruco_pose;
+      geometry_msgs::Pose aruco_pose;
     
       TheInputImage = cv_ptr->image;
       
@@ -156,12 +156,13 @@ namespace gazebo
 	  aruco::CvDrawingUtils::draw3dAxis(TheInputImageCopy,  TheCameraParameters,TheMSPoseTracker.getRvec(),TheMSPoseTracker.getTvec(),TheMarkerMapConfig[0].getMarkerSize()*2);
 	  frame_pose_map.insert(make_pair(index,TheMSPoseTracker.getRTMatrix() ));
 	  //cout << "pose rt = "<< TheMSPoseTracker.getRvec() << " " << TheMSPoseTracker.getTvec() << endl;
-	  aruco_pose.linear.x = TheMSPoseTracker.getTvec().at<float>(0);
-	  aruco_pose.linear.y = TheMSPoseTracker.getTvec().at<float>(1);
-	  aruco_pose.linear.z = TheMSPoseTracker.getTvec().at<float>(2);
-	  aruco_pose.angular.x = TheMSPoseTracker.getRvec().at<float>(0);
-	  aruco_pose.angular.y = TheMSPoseTracker.getRvec().at<float>(1);
-	  aruco_pose.angular.z = TheMSPoseTracker.getRvec().at<float>(2);
+	  aruco_pose.position.x = TheMSPoseTracker.getTvec().at<float>(0);
+	  aruco_pose.position.y = TheMSPoseTracker.getTvec().at<float>(1);
+	  aruco_pose.position.z = TheMSPoseTracker.getTvec().at<float>(2);
+	  aruco_pose.orientation.x = TheMSPoseTracker.getRvec().at<float>(0);
+	  aruco_pose.orientation.y = TheMSPoseTracker.getRvec().at<float>(1);
+	  aruco_pose.orientation.z = TheMSPoseTracker.getRvec().at<float>(2);
+	  aruco_pose.orientation.w = TheMSPoseTracker.getRvec().at<float>(3);
 	}
       }
       

@@ -1,0 +1,6 @@
+model_checkpoint_path: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-750.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-650.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-675.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-700.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-725.cptk"
+all_model_checkpoint_paths: "/home/nigno/Robots/ROSWS/src/ardrone_gazebo/a3c/networks/model/model-750.cptk"

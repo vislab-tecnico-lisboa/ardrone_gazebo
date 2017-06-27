@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- ROS launcher for the path_generatort  -->
+<launch>
+ 
+  <arg name="training" default="1" />
+  <arg name="networks_dir" default="$(find a3c)/networks" />
+  <arg name="input" default="camera" />
+  <arg name="imu_input" default="0" />
+  
+  <!-- launch first aruco_test  -->
+  <!-- <include file="$(find aruco_test)/launch/aruco_test.launch" /> -->
+
+  <node pkg="a3c" name="a3c" type="a3c.py" output="screen">
+    <param name="training" type="int" value="$(arg training)" />
+    <param name="networks_dir" type="str" value="$(arg networks_dir)" />
+    <param name="input" type="str" value="$(arg input)" />
+    <param name="imu_input" type="int" value="$(arg imu_input)" />
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find ardrone_vislab_description)/urdf/quadrotor_sensors.urdf.xacro'" />
+    <param name="world_name" type="str" value="$(find ardrone_vislab_gazebo)/models/sdf/white_room.sdf" />
+    <param name="aruco_name" type="str" value="$(find ardrone_vislab_gazebo)/models/sdf/aruco_board.sdf" /> 
+  </node>
+</launch>

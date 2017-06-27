@@ -82,13 +82,9 @@ class Worker():
         
         self.a_size = a_size
 
-        print "before Creating local AC: " + self.name + ". S_size: " + str(s_size)
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(s_size,a_size,self.name,trainer)
-        print "update_target_graph" + self.name
         self.update_local_ops = update_target_graph('global',self.name) 
-        
-        print "after Creating local AC: " + self.name
         
         # Set to 1 to activate training and to 0 to deactivate (reading from a ros parameter)
         self.train_indicator = rospy.get_param('~training')
@@ -102,11 +98,7 @@ class Worker():
         # Set to 1 to activate imu inputs and to 0 to deactivate (reading from a ros parameter)
         self.imu_input_mod = rospy.get_param('~imu_input')
         
-        print "before File Writer: " + self.networks_dir + "/train_" + str(self.number)
-        
         self.summary_writer = tf.summary.FileWriter(self.networks_dir + "/train_" + str(self.number))
-        
-        print "after File Writer: " + self.name
         
         if self.imu_input_mod == 1:
           self.imu_dim = 37
@@ -159,11 +151,9 @@ class Worker():
         f = open(map_path,'r')
         map_description = f.read()
         f.close()
-        print "after map reading: " + self.name
         f = open(aruco_path,'r')
         aruco_description = f.read()
         f.close()
-        print "after map aruco: " + self.name
         rospy.wait_for_service('gazebo/spawn_urdf_model')
         rospy.wait_for_service('gazebo/spawn_sdf_model')
         spawn_model_prox = rospy.ServiceProxy('gazebo/spawn_urdf_model', SpawnModel)
@@ -214,8 +204,6 @@ class Worker():
   
         spawn_model_prox(self.quadrotor_name, robot_description, name_space, initial_pose, "world")
         
-        print "after Spawn: " + self.name
-        
          # Subscribers initialization
         self.image_sub = rospy.Subscriber("/" + name_space + "/ardrone/front/ardrone/front/image_raw",
                                           Image, self.callback_image)
@@ -242,8 +230,6 @@ class Worker():
         self.cmd_vel_pub = rospy.Publisher("/" + name_space + '/cmd_vel', Twist, queue_size=10)
     
         rospy.loginfo("Publishers initialized")
-        
-        print "after sub and pub: " + self.name
     
         # Small sleep to give time to publishers to open the topics
         rospy.sleep(0.5)     
@@ -607,14 +593,11 @@ class Worker():
                     #input_image[0] = array_image
                     
                     
-                    
                     # Laser sensor part !!!!!NEW!!!!!
                     laser_ranges = np.asarray(self.laser_msg.ranges)
                     laser_ranges[laser_ranges == inf] = 0.0
                     inverted_ranges = 1 - (laser_ranges / self.laser_msg.range_max)
                     array_image = inverted_ranges
-                    
-                    print str(array_image) + ". WORKER: " +  str(self.number)
 
                     
                     # process and store the frame
@@ -641,7 +624,7 @@ class Worker():
                     
                     # Perform an action
                     cmd_input = Twist()
-                    cmd_input.linear.x = a[0]
+                    cmd_input.linear.x = 0.5#a[0]
                     cmd_input.linear.y = 0.0#a[1]
                     cmd_input.linear.z = 0.0#a[2]
                     cmd_input.angular.z = a[1]#a[3]
@@ -656,7 +639,6 @@ class Worker():
                             #r, aruco_cost, is_colliding = self.reward_calculation()
                             #reward version 2
                             r, aruco_cost, is_colliding, trav, timeCost, nan_rew = self.reward_calculation2()
-                            print "After rewards"
                             travSum += trav
                             timeSum += timeCost
                             
@@ -664,9 +646,7 @@ class Worker():
                                (aruco_cost > 0.8) or \
                                episode_step_count == max_episode_length - 1:
                                 d = True
-                                print "D True"
-                            else:
-                                print "D false"   
+                            else:  
                                 d = False                            
                             
                             if d == False:
@@ -677,16 +657,12 @@ class Worker():
                                 except CvBridgeError as err:
                                     rospy.logerror(err)
                                     
-                                print "Before laser"
-                                    
                                 # Laser sensor part !!!!!NEW!!!!!
                                 laser_ranges = np.asarray(self.laser_msg.ranges)
                                 laser_ranges[laser_ranges == inf] = 0.0
                                 inverted_ranges = 1 - (laser_ranges / self.laser_msg.range_max)
                                 array_image = inverted_ranges
                                 
-                                print str(array_image) + ". WORKER: " +  str(self.number)
-          
                                 # Risizeing the image to 160x80 pixel for the convolutional network
                                 #array_image = np.asarray(cv_image, dtype='float32')
                                 #episode_frames.append(array_image)
@@ -711,7 +687,6 @@ class Worker():
                             # If the episode hasn't ended, but the experience buffer is full, then we
                             # make an update step using that experience rollout.
                             if len(episode_buffer) == 30 and d != True and episode_step_count != max_episode_length - 1:
-                                print "Experience buffer"
                                 # Since we don't know what the true final return is, we "bootstrap" from our current
                                 # value estimation. 
                                 v1 = sess.run(self.local_AC.value, 
@@ -743,7 +718,7 @@ class Worker():
                             
                             # Perform an action
                             cmd_input = Twist()
-                            cmd_input.linear.x = a[0]
+                            cmd_input.linear.x = 0.5#a[0]
                             cmd_input.linear.y = 0.0#a[1]
                             cmd_input.linear.z = 0.0#a[2]
                             cmd_input.angular.z = a[1]#a[3]

@@ -112,11 +112,11 @@ struct TeleopArDrone
     joy_sub = nh_.subscribe("/joy", 1,&TeleopArDrone::joyCb, this);
     toggle_pressed_in_last_msg = cam_toggle_pressed_in_last_msg = false;
     
-    pub_takeoff       = nh_.advertise<std_msgs::Empty>("/quadrotor/ardrone/takeoff",1);
-    pub_land          = nh_.advertise<std_msgs::Empty>("/quadrotor/ardrone/land",1);
-    pub_toggle_state  = nh_.advertise<std_msgs::Empty>("/quadrotor/ardrone/reset",1);
-    pub_vel           = nh_.advertise<geometry_msgs::Twist>("/quadrotor/cmd_vel",1);
-    srv_cl_cam        = nh_.serviceClient<std_srvs::Empty>("/quadrotor/ardrone/togglecam",1);
+    pub_takeoff       = nh_.advertise<std_msgs::Empty>("/quadrotor_0/ardrone/takeoff",1);
+    pub_land          = nh_.advertise<std_msgs::Empty>("/quadrotor_0/ardrone/land",1);
+    pub_toggle_state  = nh_.advertise<std_msgs::Empty>("/quadrotor_0/ardrone/reset",1);
+    pub_vel           = nh_.advertise<geometry_msgs::Twist>("/quadrotor_0/cmd_vel",1);
+    srv_cl_cam        = nh_.serviceClient<std_srvs::Empty>("/quadrotor_0/ardrone/togglecam",1);
   }
   
   void send_cmd_vel(){
