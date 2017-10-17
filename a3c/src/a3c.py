@@ -50,7 +50,7 @@ def main(args):
   gamma = .99 # discount rate for advantage estimation and reward discounting
   s_size = 21168 # Observations are greyscale frames of 84 * 84 * 1
   a_size = 9 # Agent can move Left, Right, or Fire
-  load_model = True
+  load_model = False
   model_path = net_path + "/model"
   # TO BE CHANGED
   test = 0
@@ -69,7 +69,7 @@ def main(args):
       trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
       master_network = AC_Network(s_size,a_size,'global',None) # Generate global network
       num_workers = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
-      num_workers = 1
+#      num_workers = 1
       workers = []
       # Create worker classes
       for i in range(num_workers):
